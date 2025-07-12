@@ -1,0 +1,28 @@
+version: '3.8'  # Docker Compose 的版本
+
+services:
+  db:  # 服务名叫 db（你可以叫 postgres）
+    image: postgres:16  # 使用官方 PostgreSQL 16 镜像
+    container_name: jobtracker-db  # 容器名称
+    restart: always  # 出错后自动重启
+    environment:  # 设置环境变量
+      POSTGRES_USER: jobuser  # 数据库用户名
+      POSTGRES_PASSWORD: jobpass  # 用户密码
+      POSTGRES_DB: jobtracker  # 初始化创建的数据库名称
+    ports:
+      - "5432:5432"  # 本地的5432端口映射到容器的5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # 数据挂载，防止容器删掉数据丢失
+
+  pgadmin:
+    image: dpage/pgadmin4  # 可视化界面工具
+    container_name: pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com  # 登录账号
+      PGADMIN_DEFAULT_PASSWORD: admin123  # 登录密码
+    ports:
+      - "5050:80"  # 本地5050端口 → 容器中的80端口（网页）
+
+volumes:
+  pgdata:  # 命名卷，数据库文件存在本地
