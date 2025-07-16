@@ -2,6 +2,7 @@ package com.example.jobtracker.web;
 
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.service.JobApplicationService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,7 +17,7 @@ public class JobApplicationController {
     }
 
     @PostMapping
-    public void create(@RequestBody JobApplicationDto dto) {
+    public void create(@RequestBody @Valid  JobApplicationDto dto) {
         service.save(dto);
     }
 

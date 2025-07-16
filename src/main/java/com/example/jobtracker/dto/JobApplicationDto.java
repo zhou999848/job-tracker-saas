@@ -1,16 +1,26 @@
 package com.example.jobtracker.dto;
-
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
+
 import java.util.UUID;
 
 /**
  * DTO: 用于与前端通信的数据结构
  */
 public class JobApplicationDto {
+
+
     private UUID id;
+   @NotBlank(message="companyisnotblank")
     private String company;
+   @NotBlank(message="positionisnotblank")
+   @Size(max=50,message="number<=50")
     private String position;
+   @NotBlank(message="statusisnotblank")
     private String status;
+   @NotNull(message="appliedDateinotnull")
     private LocalDate appliedDate;
 
     // Getter & Setter 省略可用 Lombok（如 @Getter/@Setter）
