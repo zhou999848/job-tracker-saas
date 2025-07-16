@@ -1,20 +1,19 @@
-package com.example.jobtracker.domain;
+package com.example.jobtracker.dto;
 
-import jakarta.persistence.*;
-
-
-
-import java.util.UUID;
 import java.time.LocalDate;
-@Entity
-@Table(name="job-application")
-public class JobApplication {
-    @Id
-    private UUID id=UUID.randomUUID();
+import java.util.UUID;
+
+/**
+ * DTO: 用于与前端通信的数据结构
+ */
+public class JobApplicationDto {
+    private UUID id;
     private String company;
     private String position;
     private String status;
     private LocalDate appliedDate;
+
+    // Getter & Setter 省略可用 Lombok（如 @Getter/@Setter）
     public UUID getId() {
         return id;
     }
@@ -54,5 +53,4 @@ public class JobApplication {
     public void setAppliedDate(LocalDate appliedDate) {
         this.appliedDate = appliedDate;
     }
-
 }
