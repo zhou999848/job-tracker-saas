@@ -7,6 +7,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 public class JobApplicationService {
@@ -37,5 +40,33 @@ public class JobApplicationService {
             dtoList.add(dto);
         }
         return dtoList;
+    }
+
+    public Page<JobApplicationDto> findAll(int page, int size, String sortBy, String direction) {
+        Sort sort = direction.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        PageRequest request = PageRequest.of(page, size, sort);
+
+        return repository.findAll(request).map(job -> {
+            JobApplicationDto dto = new JobApplicationDto();
+            dto.setCompany(job.getCompany());
+            dto.setPosition(job.getPosition());
+            dto.setStatus(job.getStatus());
+            dto.setAppliedDate(job.getAppliedDate());
+            return dto;
+        });
+    }
+    public Page<JobApplicationDto> searchByCompany(String keyword, int page, int size) {
+        // 创建分页参数（默认不排序）
+        PageRequest request = PageRequest.of(page, size);
+        // 查询并转换为 DTO
+        return repository.findByCompanyContainingIgnoreCase(keyword, request)
+                .map(job -> {
+                    JobApplicationDto dto = new JobApplicationDto();
+                    dto.setCompany(job.getCompany());
+                    dto.setPosition(job.getPosition());
+                    dto.setStatus(job.getStatus());
+                    dto.setAppliedDate(job.getAppliedDate());
+                    return dto;
+                });
     }
 }
