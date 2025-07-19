@@ -69,4 +69,8 @@ public class JobApplicationService {
                     return dto;
                 });
     }
+    public void save(JobApplication job) {//对应uploadWithInfo的最后一行的!!!!
+        repository.save(job); // 这里的 repository 是 JPA 注入的
+    }
+
 }

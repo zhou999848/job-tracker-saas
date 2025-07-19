@@ -15,6 +15,10 @@ public class JobApplication {
     private String position;
     private String status;
     private LocalDate appliedDate;
+    @Column(name="file-path")
+    private String filePath;
+    public void setFilePath(String filePath) {this.filePath=filePath;}
+    public String getFilePath() {return this.filePath;}
     public UUID getId() {
         return id;
     }
