@@ -4,7 +4,6 @@ import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.service.JobApplicationService;
 import jakarta.validation.Valid;
-import org.springframework.data.repository.Repository;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -16,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import com.example.jobtracker.reposiroty.JobApplicationRepository;//"download"
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;

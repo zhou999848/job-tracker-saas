@@ -2,7 +2,7 @@ package com.example.jobtracker.service;
 
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.dto.JobApplicationDto;
-import com.example.jobtracker.reposiroty.JobApplicationRepository;
+import com.example.jobtracker.repository.JobApplicationRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
