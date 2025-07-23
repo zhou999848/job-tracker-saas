@@ -77,7 +77,7 @@ public class NoteController {
             String projectPath = System.getProperty("user.dir"); // 获取项目根目录
             String path = projectPath + "/uploads/notes/" + file.getOriginalFilename();//构建上传路径
             File dest = new File(path);//保存文件
-            file.transferTo(dest);//
+            file.transferTo(dest);
 
 
             Note note = new Note();
