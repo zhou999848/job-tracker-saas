@@ -19,6 +19,8 @@ public class Note {
 
     private LocalDateTime createdAt;
 
+    private String filePath;
+
     // Getter & Setter
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -31,4 +33,8 @@ public class Note {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+public void setFilePath(String filePath) { this.filePath = filePath;}
+public String getFilePath() { return filePath; }
+
 }

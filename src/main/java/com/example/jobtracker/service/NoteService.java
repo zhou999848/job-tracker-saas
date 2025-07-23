@@ -66,5 +66,8 @@ public class NoteService {
     public void delete(Long id) {
         repository.deleteById(id);
     }
+public void save(Note note) {
+repository.save(note);
+}
 
 }

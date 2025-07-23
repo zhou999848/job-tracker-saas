@@ -64,14 +64,10 @@ public class JobApplicationController {
             }
 
             // 🔥 获取绝对路径（解决你的问题的关键！）/////！！！！！！
-            String basePath = System.getProperty("user.dir");
-            String uploadPath = basePath + File.separator + "uploads";
-
-
-            // 保存文件
-            String fileName = UUID.randomUUID().toString() + "-" + file.getOriginalFilename();
-            String fullPath = uploadPath + File.separator + fileName;
-            file.transferTo(new File(fullPath));
+            String projectPath = System.getProperty("user.dir"); // ?庢?栚崻栚?
+            String path = projectPath + "/uploads/notes/" + file.getOriginalFilename();
+            File dest = new File(path);
+            file.transferTo(dest);
 
             // 保存职位信息
             JobApplication job = new JobApplication();
@@ -79,11 +75,11 @@ public class JobApplicationController {
             job.setStatus(status);
             job.setPosition(position);
             job.setAppliedDate(LocalDate.parse(appliedDateStr));
-            job.setFilePath("uploads/" + fileName); // 相对路径也保存一份
+            job.setFilePath(path); // 相对路径也保存一份
 
             service.save(job);
 
-            return "上传成功，保存路径为：uploads/" + fileName;
+            return "上传成功，保存路径为：uploads/" + path;
 
         } catch (IOException e) {
             return "上传失败：" + e.getMessage();
