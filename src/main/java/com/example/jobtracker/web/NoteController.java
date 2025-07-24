@@ -70,11 +70,11 @@ public class NoteController {
         List<String> savedPaths = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            if (file.isEmpty()) continue;
-
+            if (file.isEmpty()) { continue;}
             String contentType = file.getContentType();
             if (!contentType.startsWith("image/") && !contentType.startsWith("audio/") && !contentType.equals("application/pdf")) {
                 continue;
+
             }
 
 
