@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.time.LocalDateTime;
 import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.repository.NoteRepository;
+import java.util.ArrayList;
 
 
 
@@ -44,52 +45,56 @@ public class NoteController {
     public List<NoteDto> getNotes(@PathVariable Long jobId) {
         return service.findByJobId(jobId);
     }
-    @GetMapping("/{jobId}/paged")
+    @GetMapping("/paged")
     public Page<NoteDto> getPagedNotes(@PathVariable Long jobId,
                                        @RequestParam(defaultValue = "0") int page,
                                        @RequestParam(defaultValue = "5") int size) {
         return service.findByJobIdPaged(jobId, page, size);
     }
+
     @PostMapping("/batch")
     public void batchCreate(@RequestBody List<NoteDto> notes) {
         service.saveAll(notes);
     }
+
     @DeleteMapping("/{id}")
     public void deleteNote(@PathVariable Long id) {
         service.delete(id);
     }
-        @PostMapping("/uploadWithNote")
-        public String uploadWithNote(@RequestParam("file") MultipartFile file,
-                @RequestParam("jobId") Long jobId,
-                @RequestParam("content") String content) throws IOException {
 
-            if (file.isEmpty()) {
-                return "文件不能为空";
-            }
+    @PostMapping("/uploadMulti")
+    public String uploadMulti(@RequestParam("files") List<MultipartFile> files,
+                              @RequestParam("jobId") Long jobId,
+                              @RequestParam("content") String content) throws IOException {
+
+        List<String> savedPaths = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            if (file.isEmpty()) continue;
 
             String contentType = file.getContentType();
-            if (!contentType.equals("application/pdf")
-                    && !contentType.startsWith("image/")
-                    && !contentType.startsWith("audio/")) {
-                return "只支持 PDF / 图片 / 音频";
+            if (!contentType.startsWith("image/") && !contentType.startsWith("audio/") && !contentType.equals("application/pdf")) {
+                continue;
             }
 
-            String projectPath = System.getProperty("user.dir"); // 获取项目根目录
-            String path = projectPath + "/uploads/notes/" + file.getOriginalFilename();//构建上传路径
-            File dest = new File(path);//保存文件
+
+            String path = "uploads/notes/" + file.getOriginalFilename()+System.getProperty("user.dir");
+            File dest=new File(path);
             file.transferTo(dest);
-
-
-            Note note = new Note();
-            note.setJobId(jobId);
-            note.setContent(content);
-            note.setFilePath(path);
-            note.setCreatedAt(LocalDateTime.now());
-
-           service.save(note);
-
-            return "笔记和文件上传成功：" +path;
+            savedPaths.add(path);
         }
+
+        Note note = new Note();
+        note.setJobId(jobId);
+        note.setContent(content);
+        note.setFilePaths(savedPaths);  // 合并为字符串
+        note.setCreatedAt(LocalDateTime.now());
+        service.save(note);
+
+        return ("上传成功，共上传 " + savedPaths.size() + " 个文件");
+    }
+
+
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam("file") String filePath) throws IOException {
         File file = new File(filePath);
@@ -105,7 +110,6 @@ public class NoteController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
-
-
-
 }
+
+

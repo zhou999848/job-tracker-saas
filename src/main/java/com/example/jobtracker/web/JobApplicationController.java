@@ -65,7 +65,7 @@ public class JobApplicationController {
 
             // 🔥 获取绝对路径（解决你的问题的关键！）/////！！！！！！
             String projectPath = System.getProperty("user.dir"); // ?庢?栚崻栚?
-            String path = projectPath + "/uploads/notes/" + file.getOriginalFilename();
+            String path = projectPath + "/uploads" + file.getOriginalFilename();
             File dest = new File(path);
             file.transferTo(dest);
 
