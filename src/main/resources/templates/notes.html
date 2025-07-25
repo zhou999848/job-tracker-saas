@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>note</title></head>
+<body>
+<h1>noteList</h1>
+<ul>
+  <li th:each="note : ${notes}">
+    <p th:text="${note.content}">noteContent</p>
+    <p th:text="${note.createdAt}">time</p>
+    <div th:if="${note.filePaths}">
+      <span>attachment: </span>
+      <span th:each="path : ${#strings.split(note.filePaths, ',')}">
+        <a th:href="@{'/' + ${path}}" th:text="${path}">attachment</a><br/>
+      </span>
+    </div>
+  </li>
+</ul>
+</body>
+</html>

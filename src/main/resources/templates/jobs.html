@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>jobList</title></head>
+<body>
+<h1>allJobs</h1>
+<ul>
+    <li th:each="job : ${jobs}">
+        <a th:href="@{/notes/{id}(id=${job.id})}"
+           th:text="${job.company} + ' - ' + ${job.position}">jobPosition</a>
+    </li>
+</ul>
+</body>
+</html>
