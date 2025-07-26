@@ -1,16 +1,16 @@
 package com.example.jobtracker.domain;
 
 import jakarta.persistence.*;
-
-
-
 import java.util.UUID;
+
+
+
 import java.time.LocalDate;
 @Entity
 @Table(name="job-application")
 public class JobApplication {
     @Id
-    private UUID id=UUID.randomUUID();
+    private String id;
     private String company;
     private String position;
     private String status;
@@ -19,11 +19,11 @@ public class JobApplication {
     private String filePath;
     public void setFilePath(String filePath) {this.filePath=filePath;}
     public String getFilePath() {return this.filePath;}
-    public UUID getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(String id) {
         this.id = id;
     }
 

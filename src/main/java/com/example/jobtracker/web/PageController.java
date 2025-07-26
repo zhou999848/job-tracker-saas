@@ -31,7 +31,7 @@ public class PageController {
     }
 
     @GetMapping("/notes/{jobId}")
-    public String showNotes(@PathVariable Long jobId, Model model) {
+    public String showNotes(@PathVariable String jobId, Model model) {
         List<Note> notes = noteRepo.findByJobId(jobId);
         model.addAttribute("notes", notes);
         return "notes";  // 指向 templates/notes.html

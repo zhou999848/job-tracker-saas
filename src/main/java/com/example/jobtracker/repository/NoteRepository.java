@@ -8,7 +8,10 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 
-public interface NoteRepository extends JpaRepository<Note, Long> {
-    List<Note> findByJobId(Long jobId);  // 通过 jobId 查笔记
-Page<Note>findByJobId(Long jobId,Pageable pageable);
+public interface NoteRepository extends JpaRepository<Note, String> {
+    List<Note> findByJobId(String jobId);  // 通过 jobId 查笔记
+Page<Note>findByJobId(String jobId,Pageable pageable);
+
+
+    List<Note> id(Long id);
 }

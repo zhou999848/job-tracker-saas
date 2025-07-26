@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 
@@ -32,7 +31,7 @@ public class NoteService {
         repository.save(note);
     }
 
-    public List<NoteDto> findByJobId(Long jobId) {
+    public List<NoteDto> findByJobId(String jobId) {
         return repository.findByJobId(jobId).stream().map(note -> {
             NoteDto dto = new NoteDto();
             dto.setJobId(note.getJobId());
@@ -41,7 +40,7 @@ public class NoteService {
             return dto;
         }).collect(Collectors.toList());
     }
-    public Page<NoteDto> findByJobIdPaged(Long jobId, int page, int size) {
+    public Page<NoteDto> findByJobIdPaged(String jobId, int page, int size) {
         PageRequest request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return repository.findByJobId(jobId, request)
                 .map(note -> {
@@ -64,7 +63,7 @@ public class NoteService {
         repository.saveAll(toSave);
     }
     public void delete(Long id) {
-        repository.deleteById(id);
+        repository.deleteById(String.valueOf(id));
     }
 public void save(Note note) {
 repository.save(note);

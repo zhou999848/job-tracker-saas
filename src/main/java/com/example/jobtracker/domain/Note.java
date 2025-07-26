@@ -8,11 +8,12 @@ import java.util.ArrayList;
 
 @Entity
 public class Note {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long jobId;  // 外键，不强关联
+    private String jobId;  // 外键，不强关联
 
     private String content;
 
@@ -25,16 +26,15 @@ public class Note {
     public Long getId() {
         return id;
     }
-
     public void setId(Long id) {
         this.id = id;
     }
 
-    public Long getJobId() {
+    public String getJobId() {
         return jobId;
     }
 
-    public void setJobId(Long jobId) {
+    public void setJobId(String jobId) {
         this.jobId = jobId;
     }
 

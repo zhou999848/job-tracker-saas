@@ -14,15 +14,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import com.example.jobtracker.domain.Note;
-import com.example.jobtracker.repository.NoteRepository;
+
 import java.util.ArrayList;
 
 
@@ -42,11 +40,11 @@ public class NoteController {
     }
 
     @GetMapping("/{jobId}")
-    public List<NoteDto> getNotes(@PathVariable Long jobId) {
+    public List<NoteDto> getNotes(@PathVariable String jobId) {
         return service.findByJobId(jobId);
     }
     @GetMapping("/paged")
-    public Page<NoteDto> getPagedNotes(@PathVariable Long jobId,
+    public Page<NoteDto> getPagedNotes(@PathVariable String jobId,
                                        @RequestParam(defaultValue = "0") int page,
                                        @RequestParam(defaultValue = "5") int size) {
         return service.findByJobIdPaged(jobId, page, size);
@@ -64,7 +62,7 @@ public class NoteController {
 
     @PostMapping("/uploadMulti")
     public String uploadMulti(@RequestParam("files") List<MultipartFile> files,
-                              @RequestParam("jobId") Long jobId,
+                              @RequestParam("jobId") String jobId,
                               @RequestParam("content") String content) throws IOException {
 
         List<String> savedPaths = new ArrayList<>();
