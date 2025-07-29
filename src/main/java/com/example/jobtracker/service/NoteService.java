@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,7 +32,7 @@ public class NoteService {
         repository.save(note);
     }
 
-    public List<NoteDto> findByJobId(String jobId) {
+    public List<NoteDto> findByJobId(UUID jobId) {
         return repository.findByJobId(jobId).stream().map(note -> {
             NoteDto dto = new NoteDto();
             dto.setJobId(note.getJobId());
@@ -40,7 +41,7 @@ public class NoteService {
             return dto;
         }).collect(Collectors.toList());
     }
-    public Page<NoteDto> findByJobIdPaged(String jobId, int page, int size) {
+    public Page<NoteDto> findByJobIdPaged(UUID jobId, int page, int size) {
         PageRequest request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return repository.findByJobId(jobId, request)
                 .map(note -> {
@@ -62,8 +63,8 @@ public class NoteService {
 
         repository.saveAll(toSave);
     }
-    public void delete(Long id) {
-        repository.deleteById(String.valueOf(id));
+    public void delete(UUID id) {
+        repository.deleteById(id);
     }
 public void save(Note note) {
 repository.save(note);

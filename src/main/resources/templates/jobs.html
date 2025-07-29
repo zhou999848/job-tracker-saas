@@ -6,13 +6,13 @@
 <ul>
     <li th:each="job : ${jobs}">
         <a th:href="@{/notes/{id}(id=${job.id})}"
-           th:text="${job.company} + ' - ' + ${job.position}">jobPosition</a>
+           th:text="${job.company} + ' - ' + ${job.position}">职位信息(jobPosition)</a>
     </li>
 </ul>
 </body>
 <head>//新しい
     <meta charset="UTF-8">
-    <title>职位列表</title>
+    <title>职位列表(jobList)</title>
     <link rel="stylesheet" th:href="@{/style.css}">
 </head>
 <h1 th:text="#{page.title}">joblist</h1>//新しい

@@ -11,7 +11,7 @@ import java.util.UUID;
 public class JobApplicationDto {
 
 
-    private String id;
+    private UUID id;
    @NotBlank(message="companyisnotblank")
     private String company;
    @NotBlank(message="positionisnotblank")
@@ -23,11 +23,11 @@ public class JobApplicationDto {
     private LocalDate appliedDate;
 
     // Getter & Setter 省略可用 Lombok（如 @Getter/@Setter）
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

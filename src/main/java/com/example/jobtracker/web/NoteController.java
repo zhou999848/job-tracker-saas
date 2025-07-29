@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 import com.example.jobtracker.domain.Note;
 
 import java.util.ArrayList;
-
+import java.util.UUID;
 
 
 @RestController
@@ -40,11 +40,11 @@ public class NoteController {
     }
 
     @GetMapping("/{jobId}")
-    public List<NoteDto> getNotes(@PathVariable String jobId) {
+    public List<NoteDto> getNotes(@PathVariable UUID jobId) {
         return service.findByJobId(jobId);
     }
     @GetMapping("/paged")
-    public Page<NoteDto> getPagedNotes(@PathVariable String jobId,
+    public Page<NoteDto> getPagedNotes(@PathVariable UUID jobId,
                                        @RequestParam(defaultValue = "0") int page,
                                        @RequestParam(defaultValue = "5") int size) {
         return service.findByJobIdPaged(jobId, page, size);
@@ -56,13 +56,13 @@ public class NoteController {
     }
 
     @DeleteMapping("/{id}")
-    public void deleteNote(@PathVariable Long id) {
+    public void deleteNote(@PathVariable UUID id) {
         service.delete(id);
     }
 
     @PostMapping("/uploadMulti")
     public String uploadMulti(@RequestParam("files") List<MultipartFile> files,
-                              @RequestParam("jobId") String jobId,
+                              @RequestParam("jobId") UUID jobId,
                               @RequestParam("content") String content) throws IOException {
 
         List<String> savedPaths = new ArrayList<>();
@@ -76,7 +76,7 @@ public class NoteController {
             }
 
 
-            String path = "uploads/notes/" + file.getOriginalFilename()+System.getProperty("user.dir");
+            String path = System.getProperty("user.dir")+"/uploads/notes/" + file.getOriginalFilename();
             File dest=new File(path);
             file.transferTo(dest);
             savedPaths.add(path);

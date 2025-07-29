@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
+import java.util.UUID;
 
 @Controller
 public class PageController {
@@ -31,9 +32,10 @@ public class PageController {
     }
 
     @GetMapping("/notes/{jobId}")
-    public String showNotes(@PathVariable String jobId, Model model) {
+    public String showNotes(@PathVariable UUID jobId, Model model) {
         List<Note> notes = noteRepo.findByJobId(jobId);
         model.addAttribute("notes", notes);
         return "notes";  // 指向 templates/notes.html
     }
 }
+

@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>note</title></head>
-<body>
-<h1>noteList</h1>
-<ul>
-  <li th:each="note : ${notes}">
-    <p th:text="${note.content}">noteContent</p>
-    <p th:text="${note.createdAt}">time</p>
-    <div th:if="${note.filePaths}">
-      <span>attachment: </span>
-      <span th:each="path : ${#strings.split(note.filePaths, ',')}">
-        <a th:href="@{'/' + ${path}}" th:text="${path}">attachment</a><br/>
-      </span>
-    </div>
-  </li>
-</ul>
-</body>
-<head>//新しい
+<head>
   <meta charset="UTF-8">
   <title>note</title>
   <link rel="stylesheet" th:href="@{/style.css}">
 </head>
-<h1 th:text="#{page.title}">note</h1>//新しい
+<body>
+<h1 th:text="#{page.title}">note</h1>
 
+<div th:if="${#lists.isEmpty(notes)}">
+  <p>没有找到任何笔记(No notes found)</p>
+</div>
+
+<ul th:if="${not #lists.isEmpty(notes)}">
+  <li th:each="note : ${notes}">
+    <p th:text="${note.content}">笔记内容noteContent</p>
+    <p th:text="${note.createdAt}">创建时间time</p>
+
+    <div th:if="${note.filePaths}">
+      <span>附件(attachment)：</span>
+      <span th:each="path : ${note.filePaths}">
+        <a th:href="@{/api/notes/download(file=${path})}"
+           th:text="${#strings.substring(path, path.lastIndexOf('/') + 1)}+点击可下载并查看附件clickToDownloadAndViewAttachments"
+           target="_blank">下载附件(download attachment)</a><br/>
+      </span>
+    </div>
+  </li>
+</ul>
+
+
+<a th:href="@{/jobs}">返回职位列表(return jobList)</a>
+</body>
 </html>

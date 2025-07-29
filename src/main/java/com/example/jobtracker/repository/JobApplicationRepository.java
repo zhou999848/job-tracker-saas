@@ -6,7 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 
-public interface JobApplicationRepository extends JpaRepository<JobApplication,String> {
+public interface JobApplicationRepository extends JpaRepository<JobApplication,UUID> {
     Page<JobApplication> findAll(Pageable pageable);
     Page<JobApplication> findByCompanyContainingIgnoreCase(String keyword, Pageable pageable);
 }

@@ -10,7 +10,8 @@ import java.time.LocalDate;
 @Table(name="job-application")
 public class JobApplication {
     @Id
-    private String id;
+    private UUID id = UUID.randomUUID();
+
     private String company;
     private String position;
     private String status;
@@ -19,11 +20,11 @@ public class JobApplication {
     private String filePath;
     public void setFilePath(String filePath) {this.filePath=filePath;}
     public String getFilePath() {return this.filePath;}
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

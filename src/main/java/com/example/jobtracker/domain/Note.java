@@ -5,15 +5,16 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.UUID;
 
 @Entity
 public class Note {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    private UUID id;
 
-    private String jobId;  // 外键，不强关联
+    private UUID jobId;  // 外键，不强关联
 
     private String content;
 
@@ -23,18 +24,18 @@ public class Note {
     private List<String> filePaths = new ArrayList<>();
 
     // Getter & Setter
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
-    public String getJobId() {
+    public UUID getJobId() {
         return jobId;
     }
 
-    public void setJobId(String jobId) {
+    public void setJobId(UUID jobId) {
         this.jobId = jobId;
     }
 
