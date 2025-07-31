@@ -1,11 +1,10 @@
 package com.example.jobtracker.dto;
 
-import java.util.UUID;
-
-public class UserDto {
+public class LoginRequest {
     private String username;
     private String password;
 
+    // Getter / Setter
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 

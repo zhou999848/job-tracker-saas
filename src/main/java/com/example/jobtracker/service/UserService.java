@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserService {
     private final UserRepository repo;
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder encoder;
 
-    public UserService(UserRepository repo) {
-        this.repo = repo;
+    public UserService(UserRepository repo,BCryptPasswordEncoder encoder) {
+        this.repo = repo;this.encoder = encoder;
     }
 
     public void register(UserDto dto) {
