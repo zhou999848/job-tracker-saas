@@ -11,7 +11,8 @@ import java.time.LocalDate;
 public class JobApplication {
     @Id
     private UUID id = UUID.randomUUID();
-
+@ManyToOne
+private User user;
     private String company;
     private String position;
     private String status;
@@ -59,5 +60,8 @@ public class JobApplication {
     public void setAppliedDate(LocalDate appliedDate) {
         this.appliedDate = appliedDate;
     }
+
+    public void setUser(User user){this.user=user;}
+    public User getUser(){return this.user;}
 
 }

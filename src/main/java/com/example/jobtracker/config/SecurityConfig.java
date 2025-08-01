@@ -31,10 +31,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/users/register", "/api/users/login","/api/jobs").permitAll() // 注册和登录不拦截
-                        .anyRequest().authenticated() // 其他都要登录
+                        .anyRequest().authenticated() // 其他都要登录验证身份
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 不使用 Session
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) // 添加 JWT 过滤器
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 禁用 session，每次请求靠 JWT 验证
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) // 添加 JwtFilter放在默认的用户名密码认证过滤器 之前。 这样可以让 Spring Security 使用 JWT 来验证用户身份
+
+
                 .build();
     }
 

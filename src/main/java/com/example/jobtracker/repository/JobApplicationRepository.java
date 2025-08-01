@@ -9,7 +9,9 @@ import org.springframework.data.domain.Pageable;
 
 
 public interface JobApplicationRepository extends JpaRepository<JobApplication,UUID> {
-    Page<JobApplication> findAll(Pageable pageable);
+    Page<JobApplication> findByUserUsername(String username, Pageable pageable);
+
     Page<JobApplication> findByCompanyContainingIgnoreCase(String keyword, Pageable pageable);
 
+    List<JobApplication> findByUserId(UUID id);
 }

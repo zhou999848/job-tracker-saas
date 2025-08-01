@@ -2,6 +2,7 @@ package com.example.jobtracker.web;
 
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.dto.JobApplicationDto;
+import com.example.jobtracker.security.JwtUtil;
 import com.example.jobtracker.service.JobApplicationService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -33,6 +34,7 @@ import java.io.IOException;
 @RequestMapping("/api/jobs")
 public class JobApplicationController {
     private final JobApplicationService service;
+    private JwtUtil jwtUtil;
 
     public JobApplicationController(JobApplicationService service) {
         this.service = service;
@@ -87,13 +89,8 @@ public class JobApplicationController {
     }
 
 
-
-    @GetMapping("/list")
-    public List<JobApplicationDto> list() {
-        return service.findAll();
-    }
-
-    public Page<JobApplicationDto> listt(
+    @GetMapping//数据隔离
+    public Page<JobApplicationDto> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(defaultValue = "appliedDate") String sortBy,
@@ -101,6 +98,12 @@ public class JobApplicationController {
     ) {
         return service.findAll(page, size, sortBy, direction);
     }
+
+
+
+
+
+
 
     @GetMapping("/search")
     public Page<JobApplicationDto> search(@RequestParam String keyword,
@@ -124,9 +127,6 @@ public class JobApplicationController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
-    // ✅ GET 显示职位列表
-    @GetMapping
-    public List<JobApplicationDto> getAllJobs() {
-        return service.findAll();
-    }
+
+
 }

@@ -12,7 +12,7 @@ import java.util.Date;
 public class JwtUtil {
     private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
 
-    public String generateToken(String username) {
+    public String generateToken(String username) {//生ｃ成包含用hu名的JWTtoken有效期1天
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())
@@ -22,7 +22,7 @@ public class JwtUtil {
     }
 
 
-    public String getUsernameFromToken(String token) {
+    public String getUsernameFromToken(String token) {//用解析器从JWTtoken提取用hu名、用途"每人只能访问自己的数据”
         return Jwts.parser()
                 .setSigningKey(secretKey)
                 .parseClaimsJws(token)

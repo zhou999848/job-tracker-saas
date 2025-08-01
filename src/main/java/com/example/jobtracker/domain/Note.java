@@ -20,6 +20,8 @@ public class Note {
 
     private LocalDateTime createdAt;
 
+    @ManyToOne
+    private User user;
     @ElementCollection
     private List<String> filePaths = new ArrayList<>();
 
@@ -61,4 +63,8 @@ public class Note {
     public void setFilePaths(List<String> filePaths) {
         this.filePaths = filePaths;
     }
+
+    public void setUser(User user) {this.user = user;}
+    public User getUser() {return user;}
+
 }

@@ -5,6 +5,7 @@ import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,10 +31,11 @@ public class PageController {
         model.addAttribute("jobs", jobs);
         return "jobs";  // 指向 templates/jobs.html
     }
+    Pageable request;@GetMapping("/notes/{jobId}")
 
-    @GetMapping("/notes/{jobId}")
     public String showNotes(@PathVariable UUID jobId, Model model) {
-        List<Note> notes = noteRepo.findByJobId(jobId);
+
+        List<Note> notes = (List<Note>) noteRepo.findByJobId(jobId,request);
         model.addAttribute("notes", notes);
         return "notes";  // 指向 templates/notes.html
     }
