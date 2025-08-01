@@ -10,6 +10,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.web.bind.annotation.GetMapping;
 
 @Service
 public class JobApplicationService {
@@ -55,6 +56,7 @@ public class JobApplicationService {
             return dto;
         });
     }
+
     public Page<JobApplicationDto> searchByCompany(String keyword, int page, int size) {
         // 创建分页参数（默认不排序）
         PageRequest request = PageRequest.of(page, size);
@@ -69,8 +71,11 @@ public class JobApplicationService {
                     return dto;
                 });
     }
+
     public void save(JobApplication job) {//对应uploadWithInfo的最后一行的!!!!
         repository.save(job); // 这里的 repository 是 JPA 注入的
     }
 
+
 }
+

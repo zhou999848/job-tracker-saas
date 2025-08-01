@@ -124,4 +124,9 @@ public class JobApplicationController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
+    // ✅ GET 显示职位列表
+    @GetMapping
+    public List<JobApplicationDto> getAllJobs() {
+        return service.findAll();
+    }
 }
