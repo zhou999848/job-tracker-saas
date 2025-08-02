@@ -10,7 +10,7 @@ import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+    private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);//每次重新运行后token会变化
 
     public String generateToken(String username) {//生ｃ成包含用hu名的JWTtoken有效期1天
         return Jwts.builder()

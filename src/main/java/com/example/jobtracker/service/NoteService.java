@@ -5,6 +5,7 @@ import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.NoteDto;
 import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,9 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
 
 
 @Service
@@ -62,9 +66,10 @@ public class NoteService {
             return dto;
         }).toList();
     }
+
     public Page<NoteDto> findByJobIdPaged(UUID jobId, int page, int size) {
         PageRequest request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return noteRepository.findByJobId(jobId,request)
+        return noteRepository.findByJobId(jobId, request)
                 .map(note -> {
                     NoteDto dto = new NoteDto();
                     dto.setJobId(note.getJobId());
@@ -73,6 +78,7 @@ public class NoteService {
                     return dto;
                 });
     }
+
     public void saveAll(List<NoteDto> notes) {
         List<Note> toSave = notes.stream().map(dto -> {
             Note note = new Note();
@@ -84,11 +90,31 @@ public class NoteService {
 
         noteRepository.saveAll(toSave);
     }
+
     public void delete(UUID id) {
         noteRepository.deleteById(id);
     }
-public void save(Note note) {
-noteRepository.save(note);
+
+    public void save(Note note) {
+        noteRepository.save(note);
+    }
+
+    public void checkOwner(UUID id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        Note note = noteRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        if (!note.getUser().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+
+        noteRepository.delete(note);
+    }
+
+    public Note findById(UUID id) {//4-5対応controller。findById
+        return noteRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该职位"));
+    }
 }
 
-}

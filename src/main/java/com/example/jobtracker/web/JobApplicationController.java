@@ -5,6 +5,8 @@ import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.security.JwtUtil;
 import com.example.jobtracker.service.JobApplicationService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -23,6 +25,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.io.FileInputStream;
 
 
@@ -30,10 +34,13 @@ import java.io.FileInputStream;
 import java.io.File;
 
 import java.io.IOException;
+
+import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
+
 @RestController
 @RequestMapping("/api/jobs")
 public class JobApplicationController {
-    private final JobApplicationService service;
+    private JobApplicationService service = null;
     private JwtUtil jwtUtil;
 
     public JobApplicationController(JobApplicationService service) {
@@ -89,7 +96,7 @@ public class JobApplicationController {
     }
 
 
-    @GetMapping//数据隔离
+    @GetMapping//数据隔离(4-3,4-4)
     public Page<JobApplicationDto> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
@@ -127,6 +134,19 @@ public class JobApplicationController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
+    @DeleteMapping("/{id}")//4-5
+    public ResponseEntity<?> deleteJob(@PathVariable UUID id) {
+        // 1. 先查出 JobApplication（可能为空）//4-5测试时出现问题
+        JobApplication job = service.findById(id);
+
+
+        service.checkOwner(id);
+
+
+        return ResponseEntity.ok("删除成功");
+    }
+
+
 
 
 }

@@ -55,10 +55,6 @@ public class NoteController {
         service.saveAll(notes);
     }
 
-    @DeleteMapping("/{id}")
-    public void deleteNote(@PathVariable UUID id) {
-        service.delete(id);
-    }
 
     @PostMapping("/uploadMulti")
     public String uploadMulti(@RequestParam("files") List<MultipartFile> files,
@@ -108,6 +104,17 @@ public class NoteController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
-}
 
+    @DeleteMapping("/{id}")//4-5
+    public ResponseEntity<?> deleteJob(@PathVariable UUID id) {
+        // 1. 先查出 note（可能为空）//4-5测试时出现问题
+        Note note = service.findById(id);
+
+
+        service.checkOwner(id);
+
+
+        return ResponseEntity.ok("削除成功");
+    }
+}
 

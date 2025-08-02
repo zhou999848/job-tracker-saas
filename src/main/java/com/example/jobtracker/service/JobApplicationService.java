@@ -5,14 +5,20 @@ import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
 
 @Service
 public class JobApplicationService {
@@ -91,6 +97,24 @@ public class JobApplicationService {
 
     public void save(JobApplication job) {//对应uploadWithInfo的最后一行的!!!!
         jobRepository.save(job); // 这里的 repository 是 JPA 注入的
+    }
+
+    public void checkOwner(UUID id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        JobApplication job = jobRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        if (!job.getUser().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+
+        jobRepository.delete(job);
+    }
+
+    public JobApplication findById(UUID id) {//4-5对应controller。findById
+        return jobRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该职位"));
     }
 
 
