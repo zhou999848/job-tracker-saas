@@ -1,6 +1,7 @@
 package com.example.jobtracker.service;
 
 import com.example.jobtracker.domain.JobApplication;
+import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
@@ -100,9 +101,9 @@ public class JobApplicationService {
     }
 
     public void checkOwner(UUID id) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();//获取当前登录用户
 
-        JobApplication job = jobRepository.findById(id)
+        JobApplication job=jobRepository.findById(id)//加载note，并检查是不是当前用户的
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (!job.getUser().getUsername().equals(username)) {
@@ -112,11 +113,10 @@ public class JobApplicationService {
         jobRepository.delete(job);
     }
 
-    public JobApplication findById(UUID id) {//4-5对应controller。findById
+    public JobApplication findById(UUID id) {//4-5対応controller。findById
         return jobRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该职位"));
     }
-
 
 }
 

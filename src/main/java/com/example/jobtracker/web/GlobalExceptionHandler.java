@@ -5,35 +5,63 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 
-    // 这个类会处理所有接口的校验错误
-    @RestControllerAdvice
-    public class GlobalExceptionHandler {
+/**
 
-        // 处理参数验证失败的异常
-        @ExceptionHandler(MethodArgumentNotValidException.class)
-        public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
-            Map<String, String> errors = new HashMap<>();
+ ✅ 全局异常处理类 / Global Exception Handler
+ */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
 
-            // 从异常中取出所有字段错误
-            ex.getBindingResult().getFieldErrors().forEach(error -> {
-                // 哪个字段错了
-                // 对应的错误信息
-                errors.put(error.getField(), error.getDefaultMessage());
-            });
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-            // 返回 400 状态码 + 错误信息
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    private String getCurrentUsername() {
+        try {
+            return SecurityContextHolder.getContext().getAuthentication().getName();
+        } catch (Exception e) {
+            return "anonymous";
         }
+    }
 
-        //文件类型错误 / 文件未找到等通用异常
-        @ExceptionHandler(Exception.class)
-        public Map<String, String> handleOther(Exception ex) {
+    /**
+
+     ✅ 处理参数校验失败 / Handle validation failure
+
+     [Exception] MethodArgumentNotValidException
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
+        String username = getCurrentUsername();
+        Map<String, String> errors = new HashMap<>();
+
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            errors.put(error.getField(), error.getDefaultMessage());
+        });
+
+        logger.warn("[Validation Error] User={} - 参数校验失败 / Validation failed: {}", username, errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    }
+
+    /**
+
+     ✅ 通用异常处理 / Handle general exceptions (e.g. file not found, type mismatch)
+
+     [Exception] Exception
+     */
+    @ExceptionHandler(Exception.class)
+    public Map<String, String> handleOther(Exception ex) {
+        String username = getCurrentUsername();
         Map<String, String> error = new HashMap<>();
         error.put("error", ex.getMessage());
+
+        logger.error("[Unhandled Exception] User={} - 未处理异常 / Exception occurred: {}", username, ex.getMessage());
         return error;
     }
 }
+

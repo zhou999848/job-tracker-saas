@@ -100,9 +100,9 @@ public class NoteService {
     }
 
     public void checkOwner(UUID id) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();//获取当前登录用户
 
-        Note note = noteRepository.findById(id)
+        Note note = noteRepository.findById(id)//加载note，并检查是不是当前用户的
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (!note.getUser().getUsername().equals(username)) {
