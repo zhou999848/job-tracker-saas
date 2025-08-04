@@ -61,8 +61,12 @@ public class NoteService {
         return noteRepository.findByUserUsernameAndJobId(username, jobId).stream().map(note -> {
             NoteDto dto = new NoteDto();
 
+
             dto.setJobId(note.getJobId());
+            dto.setContent(note.getContent());
             dto.setCreatedAt(note.getCreatedAt());
+
+
             return dto;
         }).toList();
     }

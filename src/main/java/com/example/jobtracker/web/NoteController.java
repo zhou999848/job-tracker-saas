@@ -47,7 +47,7 @@ public class NoteController {
     @PostMapping
     public void create(@RequestBody NoteDto dto) {
         String username = getCurrentUsername();
-        
+
         logger.info("【EN】User={} Creating note / 【中文】用户={} 创建笔记 / 【日本語】ユーザー={} がメモ作成: jobId={}", username, username, username, dto.getJobId());
         service.save(dto);
     }
