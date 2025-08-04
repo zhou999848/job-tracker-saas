@@ -19,26 +19,36 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
 
-    private final JwtFilter jwtFilter;
-
-    public SecurityConfig(JwtFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
-    }
-
-    @Bean
+   @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // 暂时禁用 CSRF，开发阶段可用
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/register", "/api/users/login","/api/jobs").permitAll() // 注册和登录不拦截
-                        .anyRequest().authenticated() // 其他都要登录验证身份
+                        .requestMatchers(
+                                "/login",               // 登录页面
+                                "/css/**",              // 样式文件
+                                "/js/**",               // JS 脚本
+                                "/images/**",           // 图片资源
+                                "/api/users/register"   // 注册 API
+                        ).permitAll()              // 放行这些路径
+                        .anyRequest().authenticated() // 其他请求都需要登录
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 禁用 session，每次请求靠 JWT 验证
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) // 添加 JwtFilter放在默认的用户名密码认证过滤器 之前。 这样可以让 Spring Security 使用 JWT 来验证用户身份
-
-
+                .formLogin(login -> login
+                        .loginPage("/login")                       // 自定义登录页面
+                        .defaultSuccessUrl("/jobs", true)          // 登录成功后跳转
+                        .failureUrl("/login?error")        // 登录失败后跳转
+                        .permitAll()
+                )
+                .logout(logout -> logout
+                        .logoutSuccessUrl("/login?logout")         // 登出后跳转
+                        .permitAll()
+                )
                 .build();
     }
+
+
+
+
 
 
     @Bean//
