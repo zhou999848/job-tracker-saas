@@ -1,19 +1,34 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><title>jobList</title></head>
-<body>
-<h1>allJobs</h1>
-<ul>
-    <li th:each="job : ${jobs}">
-        <a th:href="@{/notes/{id}(id=${job.id})}"
-           th:text="${job.company} + ' - ' + ${job.position}">职位信息(jobPosition)</a>
-    </li>
-</ul>
-</body>
-<head>//新しい
+<head>
     <meta charset="UTF-8">
-    <title>职位列表(jobList)</title>
-    <link rel="stylesheet" th:href="@{/style.css}">
+    <title>职位列表</title>
 </head>
-<h1 th:text="#{page.title}">joblist</h1>//新しい
+<body>
+<h2>已申请职位列表</h2>
+
+<table border="1">
+    <tr>
+        <th>公司</th>
+        <th>职位</th>
+        <th>状态</th>
+        <th>申请日期</th>
+    </tr>
+
+    <tr th:each="job : ${jobs}">
+        <td th:text="${job.company}">公司名</td>
+        <td th:text="${job.position}">职位名</td>
+        <td th:text="${job.status}">状态</td>
+        <td th:text="${job.appliedDate}">申请日期</td>
+    </tr>
+</table>
+
+<a href="/logout" >登出</a>
+<a href="@{/notes/{id}(id=${job.id})}">note</a>
+</body>
 </html>
+
+
+
+
+

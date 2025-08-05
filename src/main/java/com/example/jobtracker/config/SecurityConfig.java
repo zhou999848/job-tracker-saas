@@ -15,36 +15,36 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
 
-   @Bean
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(csrf -> csrf.disable()) // 暂时禁用 CSRF，开发阶段可用
+        http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/login",               // 登录页面
-                                "/css/**",              // 样式文件
-                                "/js/**",               // JS 脚本
-                                "/images/**",           // 图片资源
-                                "/api/users/register"   // 注册 API
-                        ).permitAll()              // 放行这些路径
-                        .anyRequest().authenticated() // 其他请求都需要登录
+                        .requestMatchers("/login", "/doLogin","/css/**","/jobs","/notes/").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .formLogin(login -> login
-                        .loginPage("/login")                       // 自定义登录页面
-                        .defaultSuccessUrl("/jobs", true)          // 登录成功后跳转
-                        .failureUrl("/login?error")        // 登录失败后跳转
+                .formLogin(form -> form
+                        .loginPage("/login")        // 你的自定义 login.html 页面
+                        .loginProcessingUrl("/doLogin") // 提交表单的 POST 地址
+                        .defaultSuccessUrl("/jobs", true)
+                        .failureUrl("/login?error=true")
                         .permitAll()
                 )
                 .logout(logout -> logout
-                        .logoutSuccessUrl("/login?logout")         // 登出后跳转
-                        .permitAll()
-                )
-                .build();
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout=true")
+                );
+
+        return http.build();
     }
+
+
+
+
+
 
 
 
