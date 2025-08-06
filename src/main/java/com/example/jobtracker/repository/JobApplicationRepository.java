@@ -15,7 +15,7 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication,U
     Page<JobApplication> findByUserUsername(String username, Pageable pageable);
 
     Page<JobApplication> findByCompanyContainingIgnoreCase(String keyword, Pageable pageable);
-    List<JobApplication> findByUserId(UUID id);
+
 
 
 

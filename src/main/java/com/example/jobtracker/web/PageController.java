@@ -38,7 +38,6 @@ public class PageController {
     }
 
 
-
     /**
      * ✅ 显示所有职位页面 / Display all job applications page
      * [GET] /jobs
@@ -65,13 +64,23 @@ public class PageController {
                 });
     }
     @GetMapping("/jobs")
-    public String showJobs(Model model) {
+    public String showJobs(@RequestParam(defaultValue = "0") int page,
+                           @RequestParam(defaultValue = "5") int size,
+                           @RequestParam(defaultValue = "appliedDate") String sortBy,
+                           @RequestParam(defaultValue = "desc") String direction,
+                           Model model) {
         String username = getCurrentUsername();
         logger.info("[Show Jobs] User={} 查看职位列表 / Viewing job list", username);
-        Page<JobApplicationDto>jobs=list(0,5,"appliedDate","desc");
-        model.addAttribute("jobs", jobs);
+        Page<JobApplicationDto>jobs=list(page, size, sortBy, direction);
+        model.addAttribute("jobs", jobs.getContent());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", jobs.getTotalPages());
+        model.addAttribute("sortBy", sortBy);
+        model.addAttribute("direction", direction);
+        model.addAttribute("pageSize", size);
         return "jobs";  // 指向 templates/jobs.html
     }
+
 
 
 

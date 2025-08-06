@@ -2,31 +2,64 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>职位列表</title>
+    <title>?位列表</title>
 </head>
 <body>
-<h2>已申请职位列表</h2>
+<h2>已申??位列表</h2>
+<!-- 没有职位时显示 -->
+<p th:if="${#lists.isEmpty(jobs)}">没有找到任何职位(No jobs found)</p>
 
+
+<!-- 职位列表表格 -->
 <table border="1">
     <tr>
-        <th>公司</th>
-        <th>职位</th>
-        <th>状态</th>
-        <th>申请日期</th>
-    </tr>
 
-    <tr th:each="job : ${jobs}">
-        <td th:text="${job.company}">公司名</td>
-        <td th:text="${job.position}">职位名</td>
+        <th>序号</th>
+        <th>公司</th>
+        <th>?位</th>
+        <th>状?</th>
+        <th>申?日期</th>
+    </tr>
+    <tr th:each="job, stat : ${jobs}">
+        <td th:text="${pageSize * currentPage + stat.index + 1}">序号</td>
+
+        <td th:text="${job.company}">公司</td>
+        <td th:text="${job.position}">职位</td>
         <td th:text="${job.status}">状态</td>
         <td th:text="${job.appliedDate}">申请日期</td>
     </tr>
+
 </table>
 
+
+
+
+
+
+<!-- 原职位列表 table 保留不变 -->
+
+<!-- 分页按钮 -->
+<div>
+  <span th:if="${currentPage > 0}">
+    <a th:href="@{/jobs(page=${currentPage - 1})}">上一页</a>
+  </span>
+
+    <span>第 <span th:text="${currentPage + 1}">1</span> 页</span>
+
+    <span th:if="${currentPage + 1 < totalPages}">
+    <a th:href="@{/jobs(page=${currentPage + 1})}">下一页</a>
+  </span>
+</div>
+
 <a href="/logout" >登出</a>
-<a href="@{/notes/{id}(id=${job.id})}">note</a>
+<a href="@{/notes/{id}(id=${job.id})}">note</a>//接続note（１つのjob　いくつのnote　対応）
 </body>
 </html>
+
+
+
+
+
 
 
 
