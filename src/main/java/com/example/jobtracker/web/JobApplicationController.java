@@ -54,7 +54,7 @@ public class JobApplicationController {
      * [POST] /api/jobs
      */
     @PostMapping
-    public void create(@RequestBody @Valid JobApplicationDto dto) {
+    public void addJob(@RequestBody @Valid JobApplicationDto dto) {
         logger.info("【EN】Creating job: company={}, position={} / 【中文】创建职位：公司={}，职位={} / 【日本語】職務作成：会社={}、職種={}", dto.getCompany(), dto.getPosition(), dto.getCompany(), dto.getPosition(), dto.getCompany(), dto.getPosition());
         service.save(dto);
     }

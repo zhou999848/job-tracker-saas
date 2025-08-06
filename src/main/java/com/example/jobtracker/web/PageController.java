@@ -1,10 +1,13 @@
 package com.example.jobtracker.web;
 
+import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.NoteRepository;
+import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -14,10 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,10 +27,12 @@ public class PageController {
     private static final Logger logger = LoggerFactory.getLogger(PageController.class);
     private final JobApplicationRepository jobRepo;
     private final NoteRepository noteRepo;
+    private final UserRepository userRepo;
 
-    public PageController(JobApplicationRepository jobRepo, NoteRepository noteRepo) {
+    public PageController(JobApplicationRepository jobRepo, NoteRepository noteRepo,UserRepository userRepo) {
         this.jobRepo = jobRepo;
         this.noteRepo = noteRepo;
+        this.userRepo = userRepo;
     }
 
     private String getCurrentUsername() {
@@ -82,6 +84,44 @@ public class PageController {
     }
 
 
+
+
+    public void addJob(@RequestBody @Valid JobApplicationDto dto) {
+        logger.info("【EN】Creating job: company={}, position={} / 【中文】创建职位：公司={}，职位={} / 【日本語】職務作成：会社={}、職種={}", dto.getCompany(), dto.getPosition(), dto.getCompany(), dto.getPosition(), dto.getCompany(), dto.getPosition());
+
+           // ① 获取当前登录的用户名
+           String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+           // ② 查出 User 实体
+           User user =userRepo.findByUsername(username).orElseThrow();
+
+           // ③ 创建 Job 实体并填充数据
+           JobApplication job = new JobApplication();
+           job.setCompany(dto.getCompany());
+           job.setPosition(dto.getPosition());
+           job.setStatus(dto.getStatus());
+           job.setAppliedDate(dto.getAppliedDate());
+
+           // ④ 设置所属用户
+           job.setUser(user);
+
+           // ⑤ 保存
+           jobRepo.save(job);
+       }
+       @GetMapping("/jobs/add")
+    public String showAddForm(Model model) {
+        model.addAttribute("job", new JobApplicationDto()); // 用于表单绑定
+        return "add-job";
+    }
+
+    @PostMapping("/jobs/add")
+    public String saveJob(@ModelAttribute JobApplicationDto jobDto) {
+        String username = getCurrentUsername();
+        logger.info("[Add Job] User={} 添加职位：公司={}，职位={} / Adding job: company={}, position={}", username, jobDto.getCompany(), jobDto.getPosition(), jobDto.getCompany(), jobDto.getPosition());
+        addJob(jobDto); // 调用上面的 addJob 方法保存职位
+
+        return "redirect:/jobs"; // 添加成功后跳转回职位列表
+    }
 
 
 

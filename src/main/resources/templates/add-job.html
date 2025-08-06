@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>添加职位</title>
+</head>
+<body>
+<h2>添加职位</h2>
+
+<form th:action="@{/jobs/add}" method="post">
+    <label>公司:</label>
+    <input type="text" name="company" /><br/>
+
+    <label>职位:</label>
+    <input type="text" name="position" /><br/>
+
+    <label>状态:</label>
+    <input type="text" name="status" /><br/>
+
+    <label>申请日期:</label>
+    <input type="date" name="appliedDate" /><br/>
+
+    <button type="submit">提交</button>
+</form>
+
+<a href="/jobs">返回列表</a>
+</body>
+</html>
