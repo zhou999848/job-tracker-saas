@@ -1,5 +1,6 @@
 package com.example.jobtracker.domain;
 
+import com.example.jobtracker.repository.JobApplicationRepository;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -66,5 +67,6 @@ public class Note {
 
     public void setUser(User user) {this.user = user;}
     public User getUser() {return user;}
+
 
 }

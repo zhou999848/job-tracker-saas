@@ -10,8 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface NoteRepository extends JpaRepository<Note, UUID> {
-    List<Note> findByUserUsernameAndJobId(String username, UUID jobId);
-    Page<Note> findByJobId(UUID jobId, Pageable pageable); // ★ 加上 Pageable 参数
+
+    Page<Note>findByUserUsernameAndJobId (String username, UUID jobId, Pageable pageable); // ★ 加上 Pageable 参数
 }
 
 

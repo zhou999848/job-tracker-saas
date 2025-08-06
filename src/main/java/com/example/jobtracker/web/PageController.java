@@ -2,6 +2,7 @@ package com.example.jobtracker.web;
 
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.JobApplicationDto;
+import com.example.jobtracker.dto.NoteDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
@@ -108,20 +109,21 @@ public class PageController {
            // ⑤ 保存
            jobRepo.save(job);
        }
-       @GetMapping("/jobs/add")
-    public String showAddForm(Model model) {
-        model.addAttribute("job", new JobApplicationDto()); // 用于表单绑定
-        return "add-job";
+      @GetMapping("/jobs/add")
+public String showAddJobForm(Model model) {
+        String username = getCurrentUsername();
+        logger.info("[Show Add Job Form] User={} 显示添加职位表单 / Display add job form", username);
+        model.addAttribute("job", new JobApplicationDto());
+        return "add-job";  // 指向 templates/addJob.html
     }
-
     @PostMapping("/jobs/add")
     public String saveJob(@ModelAttribute JobApplicationDto jobDto) {
         String username = getCurrentUsername();
-        logger.info("[Add Job] User={} 添加职位：公司={}，职位={} / Adding job: company={}, position={}", username, jobDto.getCompany(), jobDto.getPosition(), jobDto.getCompany(), jobDto.getPosition());
-        addJob(jobDto); // 调用上面的 addJob 方法保存职位
-
-        return "redirect:/jobs"; // 添加成功后跳转回职位列表
+        logger.info("[Save Job] User={} 保存职位 / Saving job: {}", username, jobDto);
+        addJob(jobDto);  // 调用上面的 addJob 方法
+        return "redirect:/jobs";  // 保存后重定向到职位列表
     }
+
 
 
 
@@ -130,15 +132,42 @@ public class PageController {
      * ✅ 显示某个职位的笔记页面 / Display notes for a job application
      * [GET] /notes/{jobId}
      */
-    @GetMapping("/notes/{jobId}")
-    public String showNotes(@PathVariable UUID jobId, Model model, Pageable request) {
+    public Page<NoteDto>showPagedNotes(@RequestParam UUID jobId,
+                                       @RequestParam(defaultValue = "0") int page,
+                                       @RequestParam(defaultValue = "3" )int size) {
+        String username = getCurrentUsername();
+        logger.info("【EN】User={} Fetching paged notes / 【中文】用户={} 分页获取笔记 / 【日本語】ユーザー={} がページ取得: jobId={}, page={}", username, username, username, jobId, page);
+
+        PageRequest request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return noteRepo.findByUserUsernameAndJobId(username,jobId,request)
+                .map(note -> {
+                    NoteDto dto = new NoteDto();
+                    dto.setJobId(note.getJobId());
+                    dto.setContent(note.getContent());
+                    dto.setCreatedAt(note.getCreatedAt());
+                    return dto;
+                });
+    }
+    @GetMapping("/jobs/{jobId}/notes")
+    public String showNotes(@PathVariable UUID jobId,
+                            @RequestParam(defaultValue = "0") int page,
+                            @RequestParam(defaultValue = "3") int size,
+                            Model model) {
         String username = getCurrentUsername();
         logger.info("[Show Notes] User={} 查看 jobId={} 的笔记 / Viewing notes for jobId={}", username, jobId, jobId);
 
-        List<Note> notes = (List<Note>) noteRepo.findByJobId(jobId, request);
-        model.addAttribute("notes", notes);
+      Page<NoteDto> notes = showPagedNotes(jobId, page, size);
+        model.addAttribute("jobId", jobId);
+        model.addAttribute("notes", notes.getContent());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", notes.getTotalPages());
+        model.addAttribute("pageSize", size);
         return "notes";  // 指向 templates/notes.html
     }
+
+
+
+
 
     /**
      * 显示登录页面（GET /login）

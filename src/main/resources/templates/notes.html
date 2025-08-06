@@ -3,32 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <title>note</title>
-  <link rel="stylesheet" th:href="@{/style.css}">
 </head>
 <body>
-<h1 th:text="#{page.title}">note</h1>
+<h1>note</h1>
 
+<!-- 如果没有笔记 -->
 <div th:if="${#lists.isEmpty(notes)}">
-  <p>没有找到任何笔记(No notes found)</p>
+  <p>没有找到任何笔记 (No notes found)</p>
 </div>
 
-<ul th:if="${not #lists.isEmpty(notes)}">
-  <li th:each="note : ${notes}">
-    <p th:text="${note.content}">笔记内容noteContent</p>
-    <p th:text="${note.createdAt}">创建时间time</p>
+<!-- 如果有笔记 -->
+<div th:if="${not #lists.isEmpty(notes)}">
+  <table border="1">
+    <thead>
+    <tr>
+      <th>序号</th>
+      <th>时间</th>
+      <th>笔记内容</th>
+      <th>附件下载</th> <!-- 新增列 -->
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="note, stat : ${notes}">
+      <td th:text="${pageSize * currentPage + stat.index + 1}">1</td>
+      <td th:text="${note.createdAt}">时间</td>
+      <td th:text="${note.content}">笔记内容</td>
+      <td>
+        <div th:if="${note.filePaths}">
+          <ul>
+            <li th:each="path : ${note.filePaths}">
+              <a th:href="@{/api/notes/download(file=${#urls.urlEncode(path)})}"
+                 th:text="${#strings.substring(path, path.lastIndexOf('/') + 1)}"
+                 target="_blank">附件</a>
+            </li>
+          </ul>
+        </div>
+        <span th:if="${note.filePaths == null or #lists.isEmpty(note.filePaths)}">无</span>
+      </td>
+    </tr>
+    </tbody>
+  </table>
 
-    <div th:if="${note.filePaths}">
-      <span>附件(attachment)：</span>
-      <span th:each="path : ${note.filePaths}">
-        <a th:href="@{/api/notes/download(file=${path})}"
-           th:text="${#strings.substring(path, path.lastIndexOf('/') + 1)}+点击可下载并查看附件clickToDownloadAndViewAttachments"
-           target="_blank">下载附件(download attachment)</a><br/>
-      </span>
-    </div>
-  </li>
-</ul>
+  <!-- 分页按钮 -->
+  <div style="margin-top: 10px;">
+    <span th:if="${currentPage > 0}">
+      <a th:href="@{/jobs/{jobId}/notes(jobId=${jobId}, page=${currentPage - 1})}">上一页</a>
+    </span>
 
+    <span>第 <span th:text="${currentPage + 1}">1</span> 页</span>
 
-<a th:href="@{/jobs}">返回职位列表(return jobList)</a>
+    <span th:if="${currentPage + 1 < totalPages}">
+      <a th:href="@{/jobs/{jobId}/notes(jobId=${jobId}, page=${currentPage + 1})}">下一页</a>
+    </span>
+  </div>
+</div>
+
+<!-- 返回按钮 -->
+<p>
+  <a th:href="@{/jobs}">返回职位列表 (return jobList)</a>
+</p>
 </body>
 </html>

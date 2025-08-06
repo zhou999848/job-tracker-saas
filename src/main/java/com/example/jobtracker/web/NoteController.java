@@ -53,16 +53,6 @@ public class NoteController {
     }
 
 
-    /**
-     * ✅ 获取笔记列表 / メモ一覧取得 / Get Notes by JobId
-     * [GET] /api/notes/{jobId}
-     */
-    @GetMapping("/{jobId}")
-    public List<NoteDto> getNotes(@PathVariable UUID jobId) {
-        String username = getCurrentUsername();
-        logger.info("【EN】User={} Fetching notes / 【中文】用户={} 获取笔记 / 【日本語】ユーザー={} がメモ取得: jobId={}", username, username, username, jobId);
-        return service.findByJobId(jobId);
-    }
 
     /**
      * ✅ 分页获取笔记 / メモをページングで取得 / Get Paged Notes
@@ -71,7 +61,7 @@ public class NoteController {
     @GetMapping("/paged")
     public Page<NoteDto> getPagedNotes(@RequestParam UUID jobId,
                                        @RequestParam(defaultValue = "0") int page,
-                                       @RequestParam(defaultValue = "5") int size) {
+                                       @RequestParam(defaultValue = "3") int size) {
         String username = getCurrentUsername();
         logger.info("【EN】User={} Fetching paged notes / 【中文】用户={} 分页获取笔记 / 【日本語】ユーザー={} がページ取得: jobId={}, page={}", username, username, username, jobId, page);
         return service.findByJobIdPaged(jobId, page, size);
@@ -82,10 +72,9 @@ public class NoteController {
      * [POST] /api/notes/batch
      */
     @PostMapping("/batch")
-    public void batchCreate(@RequestBody List<NoteDto> notes) {
-        String username = getCurrentUsername();
-        logger.info("【EN】User={} Batch creating notes / 【中文】用户={} 批量创建笔记 / 【日本語】ユーザー={} がメモ一括作成: count={}", username, username, username, notes.size());
-        service.saveAll(notes);
+    public void batchCreate(@RequestBody NoteDto dto) {
+
+        service.save(dto);
     }
 
     /**
