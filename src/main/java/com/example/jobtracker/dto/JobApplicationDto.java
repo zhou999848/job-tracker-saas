@@ -1,4 +1,5 @@
 package com.example.jobtracker.dto;
+import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
@@ -10,8 +11,9 @@ import java.util.UUID;
  */
 public class JobApplicationDto {
 
+    @Id
+    private UUID id = UUID.randomUUID();
 
-    private UUID id;
    @NotBlank(message="companyisnotblank")
     private String company;
    @NotBlank(message="positionisnotblank")

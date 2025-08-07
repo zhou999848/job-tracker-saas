@@ -19,6 +19,9 @@
         <th>?位</th>
         <th>状?</th>
         <th>申?日期</th>
+        <th>操作</th>
+        <th>id</th>
+
     </tr>
     <tr th:each="job, stat : ${jobs}">
         <td th:text="${pageSize * currentPage + stat.index + 1}">序号</td>
@@ -27,6 +30,14 @@
         <td th:text="${job.position}">职位</td>
         <td th:text="${job.status}">状态</td>
         <td th:text="${job.appliedDate}">申请日期</td>
+        <td>
+            <a th:href="@{/jobs/{job}(job=${job.id})}">查看</a>
+            <a th:href="@{/jobs/edit/{id}(id=${job.id})}">编辑</a>
+            <a th:href="@{/jobs/delete/{id}(id=${job.id})}" onclick="return confirm('确定删除吗?')">删除</a>
+            <a th:href="@{/jobs/{jobId}/notes(jobId=${job.id})}">look 笔记</a>
+
+        </td>
+        <td th:text="${job.id}">测试ID</td>
     </tr>
 
 </table>

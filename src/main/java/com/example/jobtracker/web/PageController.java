@@ -63,6 +63,7 @@ public class PageController {
                     dto.setPosition(job.getPosition());
                     dto.setStatus(job.getStatus());
                     dto.setAppliedDate(job.getAppliedDate());
+                    dto.setId(job.getId()); // 添加 ID 字段
                     return dto;
                 });
     }

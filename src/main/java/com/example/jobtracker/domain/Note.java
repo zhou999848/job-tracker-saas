@@ -1,11 +1,9 @@
 package com.example.jobtracker.domain;
 
-import com.example.jobtracker.repository.JobApplicationRepository;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.UUID;
 
 @Entity
@@ -24,7 +22,7 @@ public class Note {
     @ManyToOne
     private User user;
     @ElementCollection
-    private List<String> filePaths = new ArrayList<>();
+    private List<String>filePaths;
 
     // Getter & Setter
     public UUID getId() {
