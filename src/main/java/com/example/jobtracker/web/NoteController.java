@@ -147,4 +147,10 @@ public class NoteController {
         service.checkOwner(id);
         return ResponseEntity.ok("删除成功 / 削除成功 / Deleted successfully");
     }
+
+    public class FaviconController {
+        @RequestMapping("favicon.ico")
+        @ResponseBody
+        void returnNoFavicon() {}
+    }
 }
