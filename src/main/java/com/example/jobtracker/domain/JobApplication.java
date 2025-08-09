@@ -5,7 +5,7 @@ import java.util.UUID;
 
 
 
-import java.time.LocalDate;
+import java.time.LocalDate;//this is for date handling
 @Entity
 @Table(name="job-application")
 public class JobApplication {

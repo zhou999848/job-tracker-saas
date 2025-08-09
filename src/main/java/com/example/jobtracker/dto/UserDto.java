@@ -1,6 +1,6 @@
 package com.example.jobtracker.dto;
 
-import java.util.UUID;
+
 
 public class UserDto {
     private String username;
