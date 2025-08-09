@@ -197,10 +197,10 @@ public String showAddJobForm(Model model) {
         }
         return "login";
     }
-
     @PostMapping("/login")
     public String doLogin(@RequestParam String username,
                           @RequestParam String password,
+                          @RequestParam(required = false) String redirect,
                           HttpServletResponse response,
                           Model model) {
         try {
@@ -208,6 +208,7 @@ public String showAddJobForm(Model model) {
             authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password)
             );
+
             // 2) 生成 JWT
             String token = jwtUtil.generateToken(username);
             // 3) 写入 HttpOnly Cookie（名字叫 JWT）
@@ -219,7 +220,10 @@ public String showAddJobForm(Model model) {
                     .maxAge(24 * 60 * 60)
                     .build();
             response.addHeader("Set-Cookie", cookie.toString());
-
+            // 新しく入った　有 redirect 就回去；没有就去 /jobs
+            if (redirect != null && !redirect.isBlank()) {
+                return "redirect:" + redirect;
+            }
             // 4) 成功后跳到职位页
             return "redirect:/jobs";
         } catch (Exception e) {
@@ -227,7 +231,6 @@ public String showAddJobForm(Model model) {
             return "login";
         }
     }
-
     @PostMapping("/logout")
     public String doLogout(HttpServletResponse response) {
         // 覆盖同名 Cookie 使其过期
@@ -237,6 +240,9 @@ public String showAddJobForm(Model model) {
         response.addHeader("Set-Cookie", clear.toString());
         return "redirect:/login";
     }
+
+
+
 }
 
 

@@ -1,5 +1,6 @@
 package com.example.jobtracker.config;
 
+import com.example.jobtracker.security.HtmlApiAwareEntryPoint;
 import com.example.jobtracker.security.JwtFilter;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -28,26 +29,48 @@ public class SecurityConfig {
 
 
     private final JwtFilter jwtFilter;
-
-    public SecurityConfig(JwtFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
+    private final HtmlApiAwareEntryPoint htmlApiAwareEntryPoint;
+    public SecurityConfig(JwtFilter jwtFilter,
+                          HtmlApiAwareEntryPoint htmlApiAwareEntryPoint) {
+        this.jwtFilter = jwtFilter; this.htmlApiAwareEntryPoint = htmlApiAwareEntryPoint;
     }
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/css/**", "/style.css").permitAll()
-                        .requestMatchers("/api/users/register", "/api/users/login").permitAll() // 注册和登録不lan截
-                        .anyRequest().authenticated() // 其他都要登???身fen
+                        .requestMatchers("/login", "/style.css", "/css/**").permitAll()
+                        .requestMatchers("/api/users/register", "/api/users/login").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 禁用 session，?次?求靠 JWT ??
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) // 添加 JwtFilter放在默?的用?名密?????器 之前。 ??可以? Spring Security 使用 JWT 来??用?身?
-
-
+                .logout(logout -> logout
+                        .logoutUrl("/logout") // 仍然用 POST /logout
+                        // 方案1：用 Spring 自带的删除（注意它没法设置 SameSite/HttpOnly）
+                        .deleteCookies("JWT")
+                        // 方案2（关键）：再手动发一个带 SameSite/HttpOnly 的 Set-Cookie 覆盖
+                        .addLogoutHandler((req, res, auth) -> {
+                            var clear = org.springframework.http.ResponseCookie.from("JWT", "")
+                                    .httpOnly(true)  // 登录时也这样
+                                    .secure(false)   // 本地 http 用 false；线上 https 用 true
+                                    .path("/")       // 一定要和登录时一致
+                                    .sameSite("Lax") // 一定要和登录时一致
+                                    .maxAge(0)       // 立即过期
+                                    .build();
+                            res.addHeader("Set-Cookie", clear.toString());
+                        })
+                        .logoutSuccessHandler((req, res, auth) -> res.sendRedirect("/login"))
+                )
+                .exceptionHandling(e -> e.authenticationEntryPoint(htmlApiAwareEntryPoint)) // ★
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))// 禁用 session，?次?求靠 JWT ??
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
+
+
+
+
+
+
 
 
 
