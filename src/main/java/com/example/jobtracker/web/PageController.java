@@ -8,6 +8,7 @@ import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +17,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -25,18 +28,24 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
+import com.example.jobtracker.security.JwtUtil;
+import org.springframework.security.authentication.AuthenticationManager;
 
 @Controller
 public class PageController {
     private static final Logger logger = LoggerFactory.getLogger(PageController.class);
+   private final AuthenticationManager authManager;
+    private final JwtUtil jwtUtil;
     private final JobApplicationRepository jobRepo;
     private final NoteRepository noteRepo;
     private final UserRepository userRepo;
 
-    public PageController(JobApplicationRepository jobRepo, NoteRepository noteRepo,UserRepository userRepo) {
+    public PageController(AuthenticationManager authManager,JwtUtil jwtUtil,JobApplicationRepository jobRepo, NoteRepository noteRepo,UserRepository userRepo) {
         this.jobRepo = jobRepo;
         this.noteRepo = noteRepo;
         this.userRepo = userRepo;
+        this.authManager = authManager;
+        this.jwtUtil = jwtUtil;
     }
 
     private String getCurrentUsername() {
@@ -91,8 +100,8 @@ public class PageController {
 
 
 
-    public void addJob(@RequestBody @Valid JobApplicationDto dto) {
-        logger.info("【EN】Creating job: company={}, position={} / 【中文】创建职位：公司={}，职位={} / 【日本語】職務作成：会社={}、職種={}", dto.getCompany(), dto.getPosition(), dto.getCompany(), dto.getPosition(), dto.getCompany(), dto.getPosition());
+    public void addJob(@RequestBody @Valid JobApplicationDto jobDto) {
+        logger.info("【EN】Creating job: company={}, position={} / 【中文】创建职位：公司={}，职位={} / 【日本語】職務作成：会社={}、職種={}", jobDto.getCompany(), jobDto.getPosition(), jobDto.getCompany(), jobDto.getPosition(), jobDto.getCompany(), jobDto.getPosition());
 
            // ① 获取当前登录的用户名
            String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -102,10 +111,10 @@ public class PageController {
 
            // ③ 创建 Job 实体并填充数据
            JobApplication job = new JobApplication();
-           job.setCompany(dto.getCompany());
-           job.setPosition(dto.getPosition());
-           job.setStatus(dto.getStatus());
-           job.setAppliedDate(dto.getAppliedDate());
+           job.setCompany(jobDto.getCompany());
+           job.setPosition(jobDto.getPosition());
+           job.setStatus(jobDto.getStatus());
+           job.setAppliedDate(jobDto.getAppliedDate());
 
            // ④ 设置所属用户
            job.setUser(user);
@@ -189,34 +198,48 @@ public String showAddJobForm(Model model) {
         return "login";
     }
 
+    @PostMapping("/login")
+    public String doLogin(@RequestParam String username,
+                          @RequestParam String password,
+                          HttpServletResponse response,
+                          Model model) {
+        try {
+            // 1) 校验用户名/密码
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(username, password)
+            );
+            // 2) 生成 JWT
+            String token = jwtUtil.generateToken(username);
+            // 3) 写入 HttpOnly Cookie（名字叫 JWT）
+            ResponseCookie cookie = ResponseCookie.from("JWT", token)
+                    .httpOnly(true)
+                    .secure(false)        // 本地开发可 false，生产建议 true（https）
+                    .path("/")
+                    .sameSite("Lax")
+                    .maxAge(24 * 60 * 60)
+                    .build();
+            response.addHeader("Set-Cookie", cookie.toString());
 
-    /**
-     * 处理登录请求（POST /login）
-     * Process login form submission (POST /login)
-     *
-     * @param username 用户输入的用户名 Username from form
-     * @param password 用户输入的密码 Password from for
-     * @return 重定向到/jobs 或返回登录页面 Redirect to /jobs or return login page
-     */
-    @PostMapping("/doLogin")
-    public String processLogin(@RequestParam String username,
-                               @RequestParam String password) {
-        username = SecurityContextHolder.getContext().getAuthentication().getName();
-        logger.info("收到登录请求 (POST /login)，用户名: {}", username); // Log username for tracking
-
-        // 简单判断用户名和密码（实际项目中应使用数据库或JWT认证）
-        // Simple credential check (replace with DB or JWT in real projects)
-        if ("user1".equals(username) && "123456".equals(password)) {
-            username = SecurityContextHolder.getContext().getAuthentication().getName();
-            logger.info("✅ 登录成功 - 用户名: {}", username); // Log success
-            return "redirect:/home"; // 登录成功跳转 Redirect on success
-        } else {
-            return "/ddddddddddLogin";//原本这里的错误信息都已经转到("login")，现在这里只要有1个return语句就行，内容的随便写
-
+            // 4) 成功后跳到职位页
+            return "redirect:/jobs";
+        } catch (Exception e) {
+            model.addAttribute("error", "用户名或密码错误");
+            return "login";
         }
     }
 
+    @PostMapping("/logout")
+    public String doLogout(HttpServletResponse response) {
+        // 覆盖同名 Cookie 使其过期
+        ResponseCookie clear = ResponseCookie.from("JWT", "")
+                .httpOnly(true).secure(false).path("/")
+                .sameSite("Lax").maxAge(0).build();
+        response.addHeader("Set-Cookie", clear.toString());
+        return "redirect:/login";
+    }
 }
+
+
 
 
 

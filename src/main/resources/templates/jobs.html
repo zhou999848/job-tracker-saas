@@ -4,31 +4,22 @@
     <meta charset="UTF-8">
     <title>职位列表</title>
 
-    <!-- 如果启用了 Spring Security 的 CSRF（默认开启），需要把 token 注入给 JS -->
-    <meta name="_csrf" th:content="${_csrf.token}"/>
-    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <!-- 若将来开启 CSRF，再恢复下面两行；当前无状态 JWT，先禁用或加条件 -->
+    <!-- <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}"/> -->
 </head>
 
 <body>
 <h2>已申请职位列表</h2>
 
-<!-- 没有职位时显示 -->
 <p th:if="${#lists.isEmpty(jobs)}">没有找到任何职位 (No jobs found)</p>
 
-<!-- 职位列表表格 -->
 <table border="1">
     <thead>
     <tr>
-        <th>序号</th>
-        <th>公司</th>
-        <th>职位</th>
-        <th>状态</th>
-        <th>申请日期</th>
-        <th>操作</th>
-        <th>id</th>
+        <th>序号</th><th>公司</th><th>职位</th><th>状态</th><th>申请日期</th><th>操作</th><th>id</th>
     </tr>
     </thead>
-
     <tbody>
     <tr th:each="job, stat : ${jobs}" th:attr="data-row-id=${job.id}">
         <td th:text="${pageSize * currentPage + stat.index + 1}">序号</td>
@@ -38,9 +29,7 @@
         <td th:text="${job.appliedDate}">申请日期</td>
         <td>
             <a th:href="@{/jobs/edit/{id}(id=${job.id})}">编辑</a>
-            <a th:href="@{/jobs/{id}/notes(id=${job.id})}">查看笔记</a>
-            |
-
+            <a th:href="@{/jobs/{id}/notes(id=${job.id})}">查看笔记</a> |
             <button type="button" class="btn-delete" th:attr="data-id=${job.id}">删除</button>
         </td>
         <td th:text="${job.id}">测试ID</td>
@@ -48,64 +37,72 @@
     </tbody>
 </table>
 
-<!-- 分页按钮 -->
 <div>
   <span th:if="${currentPage > 0}">
     <a th:href="@{/jobs(page=${currentPage - 1})}">上一页</a>
   </span>
-
     <span>第 <span th:text="${currentPage + 1}">1</span> 页</span>
     <span>共 <span th:text="${totalPages}">1</span> 页</span>
-
     <span th:if="${currentPage + 1 < totalPages}">
     <a th:href="@{/jobs(page=${currentPage + 1})}">下一页</a>
   </span>
 </div>
 
-<a href="/logout">登出</a>
-<a th:href="@{/jobs}">返回列表</a>
+<!-- JWT 无状态：登出 = 清理本地 token 并跳转 -->
+<form th:action="@{/logout}" method="post" style="display:inline">
+    <button type="submit">退出登录</button>
+</form>
+
 
 <script>
-    // CSRF（如果启用了 Spring Security 的 CSRF）
-    const CSRF_TOKEN  = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
-    const CSRF_HEADER = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+    // 事件委托：整个文档捕获点击，只处理 .btn-delete
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-delete');
+        if (!btn) return;
 
-    // 页面加载完成后，给所有删除按钮绑定事件
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.id;   // 从 data-id 取 UUID
-                deleteJob(id, btn);
-            });
-        });
-    });
+        const jobId = btn.dataset.id;
+        console.log('[Delete] click detected, jobId=', jobId);
 
-    async function deleteJob(jobId, btn) {
-        if (!confirm("确定要删除这个职位吗？")) return;
+        if (!jobId) {
+            alert('找不到该职位ID');
+            return;
+        }
+        if (!confirm('确定要删除这个职位吗？')) return;
 
         const url = `/api/jobs/${jobId}`;
-        const headers = {};
-        if (CSRF_TOKEN && CSRF_HEADER) headers[CSRF_HEADER] = CSRF_TOKEN;
+        console.log('[Delete] sending DELETE', url);
 
         try {
-            const res = await fetch(url, { method: 'DELETE', headers });
-            const raw = await res.text().catch(() => "");
+            const res = await fetch(url, {
+                method: 'DELETE',
+                // 同域请求默认会带 Cookie；显式声明更直观
+                credentials: 'same-origin'
+            });
+
+            const text = await res.text().catch(() => '');
+
+            console.log('[Delete] response', res.status, text);
 
             if (!res.ok) {
-                alert(`❌ 删除失败：HTTP ${res.status}\nURL=${url}\n\n${raw}`);
+                alert(`❌ 删除失败：HTTP ${res.status}\n${text}`);
                 return;
             }
 
-            // 成功：移除当前行
+            // 成功：移除行
             btn.closest('tr')?.remove();
-            alert("✅ 删除成功");
-        } catch (e) {
-            console.error(e);
-            alert(`❌ 网络/脚本错误：${e?.message || e}`);
+            alert('✅ 删除成功');
+        } catch (err) {
+            console.error(err);
+            alert(`❌ 网络/脚本错误：${err?.message || err}`);
         }
-    }
-</script>
+    });
 
+    // 可选：页面加载确认一下按钮是否存在
+    document.addEventListener('DOMContentLoaded', () => {
+        const count = document.querySelectorAll('.btn-delete').length;
+        console.log('[Init] delete buttons =', count);
+    });
+</script>
 
 </body>
 </html>

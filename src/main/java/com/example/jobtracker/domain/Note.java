@@ -3,6 +3,7 @@ package com.example.jobtracker.domain;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,8 +22,10 @@ public class Note {
 
     @ManyToOne
     private User user;
-    @ElementCollection
-    private List<String>filePaths;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "note_file_paths", joinColumns = @JoinColumn(name = "note_id"))
+    @Column(name = "path")  // 必须与数据库表名一致
+    private List<String> filePaths = new ArrayList<>();
 
     // Getter & Setter
     public UUID getId() {

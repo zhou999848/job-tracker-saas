@@ -48,11 +48,13 @@ private final JobApplicationRepository jobRepo;
         note.setContent(dto.getContent());       // 设置内容
         note.setCreatedAt(dto.getCreatedAt());   // 设置时间（如果有）
         note.setJobId(dto.getJobId());           // 设置关联职位ID（外键）
-
+        note.setFilePaths(dto.getFilePaths());
         // ④ 绑定当前用户
         note.setUser(user);
 
         // ⑤ 保存
+        noteRepository.save(note);
+    }    public void save(Note note) {
         noteRepository.save(note);
     }
 
@@ -69,9 +71,14 @@ private final JobApplicationRepository jobRepo;
                     dto.setJobId(note.getJobId());
                     dto.setContent(note.getContent());
                     dto.setCreatedAt(note.getCreatedAt());
+                    dto.setFilePaths(note.getFilePaths()); // 设置附件路径
                     return dto;
                 });
     }
+
+
+
+
 
 
 
@@ -79,9 +86,7 @@ private final JobApplicationRepository jobRepo;
         noteRepository.deleteById(id);
     }
 
-    public void save(Note note) {
-        noteRepository.save(note);
-    }
+
 
     public void checkOwner(UUID id) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();//获取当前登录用户

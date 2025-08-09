@@ -1,7 +1,10 @@
 package com.example.jobtracker.config;
 
 import com.example.jobtracker.security.JwtFilter;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.Filter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,36 +19,35 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import javax.crypto.SecretKey;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/doLogin","/jobs/add","/jobs/{jobId}/notes",
-                                "api/jobs/{id}","/css/**","/jobs","/notes/").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .formLogin(form -> form
-                        .loginPage("/login")        // 你的自定义 login.html 页面
-                        .loginProcessingUrl("/doLogin") // 提交表单的 POST 地址
-                        .defaultSuccessUrl("/jobs", true)
-                        .failureUrl("/login?error=true")
-                        .permitAll()
-                )
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login?logout=true")
-                );
 
-        return http.build();
+    private final JwtFilter jwtFilter;
+
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
     }
 
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login", "/css/**", "/style.css").permitAll()
+                        .requestMatchers("/api/users/register", "/api/users/login").permitAll() // 注册和登録不lan截
+                        .anyRequest().authenticated() // 其他都要登???身fen
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 禁用 session，?次?求靠 JWT ??
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class) // 添加 JwtFilter放在默?的用?名密?????器 之前。 ??可以? Spring Security 使用 JWT 来??用?身?
 
 
-
+                .build();
+    }
 
 
 

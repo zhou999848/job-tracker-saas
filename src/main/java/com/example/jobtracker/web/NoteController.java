@@ -1,9 +1,12 @@
 package com.example.jobtracker.web;
 
+import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.NoteDto;
+import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.service.NoteService;
 import com.example.jobtracker.domain.Note;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
@@ -24,16 +27,19 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/notes")
 public class NoteController {
     // 创建一个“日志记录器(logger)”，以后可以用它来打印信息到控制台（或日志文件），帮助你调试程序
     private static final Logger logger = LoggerFactory.getLogger(NoteController.class);
-    private final NoteService service;
 
-    public NoteController(NoteService service) {
+    private final NoteService service;
+    private final UserRepository userRepository;
+    public NoteController(NoteService service, UserRepository userRepository) {
         this.service = service;
+        this.userRepository = userRepository;
     }
 
     private String getCurrentUsername() {//获取“当前登录的用户名”，用于后续日志记录或权限判断。
@@ -99,13 +105,21 @@ public class NoteController {
             String path = System.getProperty("user.dir") + "/uploads/notes/" + file.getOriginalFilename();
             File dest = new File(path);
             file.transferTo(dest);
+            logger.info("即将保存路径: {}", path);   // 新增日志
             savedPaths.add(path);
         }
+        logger.info("全部待保存附件路径: {}", savedPaths); // 新增日志
 
+
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户不存在/未登录"));
         Note note = new Note();
+        note.setUser(user);
         note.setJobId(jobId);
         note.setContent(content);
         note.setFilePaths(savedPaths);
+        logger.info("Note对象 filePaths: {}", note.getFilePaths()); // 新增日志
         note.setCreatedAt(LocalDateTime.now());
         service.save(note);
 

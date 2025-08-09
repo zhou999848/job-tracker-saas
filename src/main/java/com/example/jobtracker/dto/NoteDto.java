@@ -1,14 +1,28 @@
 package com.example.jobtracker.dto;
 
+import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class NoteDto {
+    private UUID id;
     private UUID jobId;
     private String content;
     private LocalDateTime createdAt;
-    private String filePaths; // 附件路径
+    @ElementCollection
+    @CollectionTable(name = "note_file_paths", joinColumns = @JoinColumn(name = "note_id"))
+    @Column(name = "path")  // 必须与数据库表名一致
+    private List<String> filePaths= new ArrayList<>(); // 附件路径
 
+   public UUID getId() {
+        return id;
+    }
+    public void setId(UUID id) {
+        this.id = id;
+    }
     public UUID getJobId() {
         return jobId;
     }
@@ -33,11 +47,11 @@ public class NoteDto {
         this.createdAt = createdAt;
     }
 
-    public String getFilePaths() {
+    public List<String> getFilePaths() {
         return filePaths;
     }
 
-    public void setFilePaths(String filePaths) {
+    public void setFilePaths(List<String> filePaths) {
         this.filePaths = filePaths;
     }
 }

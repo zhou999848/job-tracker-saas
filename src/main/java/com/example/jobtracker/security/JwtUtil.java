@@ -3,28 +3,41 @@ package com.example.jobtracker.security;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);//每次重新运行后token会变化
+    private final Key key;
+    private final long expirationSeconds;
 
-    public String generateToken(String username) {//生ｃ成包含用hu名的JWTtoken有效期1天
+    public JwtUtil(
+            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.expiration-seconds:86400}") long expirationSeconds
+    ) {
+        // 确保 secret >= 32 字节（HS256/HS512都OK；越长越安全）
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationSeconds = expirationSeconds;
+    }
+
+    public String generateToken(String username) {
+        long now = System.currentTimeMillis();
         return Jwts.builder()
                 .setSubject(username)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // 1 天
-                .signWith(secretKey, SignatureAlgorithm.HS512)
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now + expirationSeconds * 1000))
+                .signWith(key, SignatureAlgorithm.HS256) // 和解析时一致
                 .compact();
     }
 
-
-    public String getUsernameFromToken(String token) {//用解析器从JWTtoken提取用hu名、用途"每人只能访问自己的数据”
-        return Jwts.parser()
-                .setSigningKey(secretKey)
+    public String getUsernameFromToken(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
