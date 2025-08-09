@@ -76,6 +76,8 @@ public class SecurityConfig {
 
 
 
+
+
     @Bean//
         // 公开AuthenticationManager，以便在你自己的控制器或服务类中可以手动执行认证逻辑。
         // (Exposes the AuthenticationManager so that you can manually perform authentication logic in your

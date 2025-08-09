@@ -25,6 +25,11 @@
 <div sec:authorize="isAnonymous()">
     <a th:href="@{/login}">请登录</a>
 </div>
+
+
+
+
+
 <p th:if="${#lists.isEmpty(jobs)}">没有找到任何职位 (No jobs found)</p>
 
 <table border="1">
