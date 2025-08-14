@@ -4,14 +4,16 @@ import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.UserDto;
 import com.example.jobtracker.repository.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UserService {
     private final UserRepository repo;
-    private final BCryptPasswordEncoder encoder;
+    private final PasswordEncoder encoder; // ✅ 接口
 
-    public UserService(UserRepository repo,BCryptPasswordEncoder encoder) {
+
+    public UserService(UserRepository repo,PasswordEncoder encoder) {
         this.repo = repo;this.encoder = encoder;
     }
 

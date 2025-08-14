@@ -1,5 +1,6 @@
 package com.example.jobtracker.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -20,8 +21,10 @@ public class Note {
 
     private LocalDateTime createdAt;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnore                                // ✅ 避免被序列化时触发懒加载/循环
     private User user;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "note_file_paths", joinColumns = @JoinColumn(name = "note_id"))
     @Column(name = "path")  // 必须与数据库表名一致

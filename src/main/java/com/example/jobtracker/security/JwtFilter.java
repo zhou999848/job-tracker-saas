@@ -5,6 +5,7 @@ import jakarta.servlet.http.*;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -41,6 +42,8 @@ import org.slf4j.Logger;
             this.userDetailsService = userDetailsService;
         }
 
+
+
         /**
          * 指定哪些请求不需要进入 JWT 检查
          * Specify public endpoints to skip JWT filtering
@@ -48,7 +51,8 @@ import org.slf4j.Logger;
         @Override
         protected boolean shouldNotFilter(HttpServletRequest request) {
             String path = request.getServletPath();
-            return path.equals("/login")                     // 登录页面 / login page
+            return path.equals("/login")
+                    || path.equals("/logout")// 登录页面 / login page
                     || path.equals("/api/users/login")        // 登录 API / login API
                     || path.equals("/api/users/register")     // 注册 API / register API
                     || path.startsWith("/css/")               // 静态资源 / static resources

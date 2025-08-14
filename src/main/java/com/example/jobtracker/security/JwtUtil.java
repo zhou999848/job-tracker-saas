@@ -16,8 +16,8 @@ public class JwtUtil {
     private final long expirationSeconds;
 
     public JwtUtil(
-            @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expiration-seconds:86400}") long expirationSeconds
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.expiration-seconds:86400}") long expirationSeconds
     ) {
         // 确保 secret >= 32 字节（HS256/HS512都OK；越长越安全）
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));

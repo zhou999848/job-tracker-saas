@@ -156,11 +156,12 @@ public class JobApplicationController {
      * ✅ 删除职位 / 職務を削除 / Delete Job
      * [DELETE] /api/jobs/{id}
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("{id}")
     public ResponseEntity<?> deleteJob(@PathVariable UUID id) {
         logger.info("【EN】Deleting job ID={} / 【中文】删除职位 ID={} / 【日本語】職務 ID={} を削除", id, id, id);
         JobApplication job = service.findById(id);
         service.checkOwner(id);
-        return ResponseEntity.ok("删除成功 / 削除成功 / Deleted successfully");
+         return ResponseEntity.ok("删除成功 / 削除成功 / Deleted successfully");
+
     }
 }
