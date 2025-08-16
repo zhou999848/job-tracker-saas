@@ -1,6 +1,8 @@
 package com.example.jobtracker.web;
 
+import org.springframework.ui.Model;
 import com.example.jobtracker.domain.User;
+import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.dto.NoteDto;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.service.NoteService;
@@ -87,8 +89,14 @@ public class NoteController {
      * ✅ 上传多个附件并保存笔记 / ファイルを複数アップロードしてメモ保存 / Upload Files with Note
      * [POST] /api/notes/uploadMulti
      */
+    @GetMapping("/uploadMulti")
+    public String showAddNoteForm(Model model){
+        model.addAttribute("jobs",new JobApplicationDto());
+        return "add-note"; // 返回上传页面的视图名
+    }
+
     @PostMapping("/uploadMulti")
-    public String uploadMulti(@RequestParam("files") List<MultipartFile> files,
+    public String uploadMulti(@ModelAttribute JobApplicationDto jobDto, @RequestParam("files") List<MultipartFile> files,
                               @RequestParam("jobId") UUID jobId,
                               @RequestParam("content") String content) throws IOException {
 
@@ -113,24 +121,25 @@ public class NoteController {
 
 
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户不存在/未登录"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用?不存在/未登?"));
         Note note = new Note();
         note.setUser(user);
         note.setJobId(jobId);
         note.setContent(content);
         note.setFilePaths(savedPaths);
-        logger.info("Note对象 filePaths: {}", note.getFilePaths()); // 新增日志
+        logger.info("Note?象 filePaths: {}", note.getFilePaths()); // 新增日志
         note.setCreatedAt(LocalDateTime.now());
         service.save(note);
 
-        logger.info("【EN】User={} Uploaded {} files / 【中文】用户={} 上传 {} 个文件 / 【日本語】ユーザー={} が{} ファイルアップロード: jobId={}", username, savedPaths.size(), username, savedPaths.size(), username, savedPaths.size(), jobId);
-        return ("上传成功，共上传 " + savedPaths.size() + " 个文件");
-    }
+        logger.info("【EN】User={} Uploaded {} files / 【中文】用?={} 上? {} 个文件 / 【日本語】ユーザー={} が{} ファイルアップロード: jobId={}", username, savedPaths.size(), username, savedPaths.size(), username, savedPaths.size(), jobId);
+        // return ("上?成功，共上? " + savedPaths.size() + " 个文件");
+        return "redirect:/jobs";}
 
-    /**
-     * ✅ 下载附件 / 添付ファイルをダウンロード / Download Attachment
-     * [GET] /api/notes/download?file=xxx
-     */
+
+        /**
+         * ✅ 下载附件 / 添付ファイルをダウンロード / Download Attachment
+         * [GET] /api/notes/download?file=xxx
+         */
     @GetMapping("/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam("file") String filePath) throws IOException {
         String username = getCurrentUsername();
@@ -154,7 +163,7 @@ public class NoteController {
      * [DELETE] /api/notes/{id}
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteJob(@PathVariable UUID id) {
+    public ResponseEntity<?> deleteNote(@PathVariable UUID id) {
         String username = getCurrentUsername();
         logger.info("【EN】User={} Deleting note / 【中文】用户={} 删除笔记 / 【日本語】ユーザー={} がメモ削除: id={}", username, username, username, id);
         Note note = service.findById(id);

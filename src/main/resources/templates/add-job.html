@@ -1,29 +1,31 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>添加职位</title>
+    <title>addJob</title>
+
 </head>
 <body>
-<h2>添加职位</h2>
+<h2>addJob</h2>
 
 <form th:action="@{/jobs/add}" method="post">
-
-    <label>公司:</label>
+    <!-- ✅ 必须：CSRF 隐藏字段 -->
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+    <label>company:</label>
     <input type="text" name="company" /><br/>
 
-    <label>职位:</label>
+    <label>position:</label>
     <input type="text" name="position" /><br/>
 
-    <label>状态:</label>
+    <label>status:</label>
     <input type="text" name="status" /><br/>
 
-    <label>申请日期:</label>
+    <label>appliedDate</label>
     <input type="date" name="appliedDate" /><br/>
 
-    <button type="submit">提交</button>
+    <button type="submit">submit</button>
 </form>
 
-<a href="/jobs">返回列表</a>
+<a href="/jobs">return jobs</a>
 </body>
 </html>

@@ -55,6 +55,7 @@ import org.slf4j.Logger;
                     || path.equals("/logout")// 登录页面 / login page
                     || path.equals("/api/users/login")        // 登录 API / login API
                     || path.equals("/api/users/register")     // 注册 API / register API
+                    || path.equals("application/pdf") // PDF 下载 / PDF download
                     || path.startsWith("/css/")               // 静态资源 / static resources
                     || path.equals("/style.css")
                     || path.startsWith("/images/")

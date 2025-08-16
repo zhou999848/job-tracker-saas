@@ -79,6 +79,7 @@ public class SecurityConfig {
         return new JwtFilter(jwtUtil, uds);
     }
 
+
     @Bean
     public AuthenticationEntryPoint htmlApiAwareEntryPoint() {
         return (req, res, ex) -> {
@@ -98,31 +99,58 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtFilter jwtFilter,
             AuthenticationEntryPoint htmlApiAwareEntryPoint) throws Exception {
-        var repo = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        repo.setCookiePath("/");                 // 统一 Path
-        repo.setCookieName("XSRF-TOKEN-V2");     // ★ 一次性改名，干掉历史残留
+        // 1) 真正用上你配置过的 Cookie 仓库（可被 JS 读到，便于 fetch 写 header）
+        CookieCsrfTokenRepository repo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repo.setCookiePath("/");                 // 全站有效
+        repo.setCookieName("XSRF-TOKEN-V2");     // 统一新名字，避免历史残留
+
+        // 2) 关键：使用 XorCsrfTokenRequestAttributeHandler（会对来自 Header/表单的掩码 token 做解掩码）
+        var xor = new org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler();
+        // 若你的表单是 multipart 或需要从表单字段读取 token，也打开这行：
+       // xor.setTokenFromMultipartDataEnabled(true);
 
         http
                 .formLogin(f -> f.disable())     // 用你自己的 /login
                 .logout(l -> l.disable())        // 用你自己的 /logout
                 .csrf(csrf -> csrf
-                                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                                .csrfTokenRepository(repo)                  // ✅ 用上 repo
+                                .csrfTokenRequestHandler(xor)    // ✅ 表单隐藏字段可用
+                                // 如果登录是 JSON/没有 CSRF 字段，建议忽略：
+
                                 .ignoringRequestMatchers("/api/**","/logout")   //在 SecurityConfig 把 /logout 加进 CSRF 忽略： 这能保证你现在的 @PostMapping("/logout") 一定跑到，从而把 Cookie 清掉。
                         // 更安全（长期做法）保持 CSRF 开启，不忽略 /logout，在页面表单里带 CSRF 隐藏域：
                         // .ignoringRequestMatchers("/logout") // 若登出不是表单，临时忽略
                 )
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy. IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/login", "/logout").permitAll()
-                        .requestMatchers("/css/**","/images/**","/js/**","/style.css").permitAll()
+                        .requestMatchers("/css/**","/images/**","/js/**","/style.css","/favicon.ico", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(htmlApiAwareEntryPoint));
-
+// 让 token 在渲染页面前就被“触发”并写入 Cookie
+        http.addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
         // 关键：注入“实例”，不要再调用无参方法
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-}
+/** 强制“取一下” token，触发生成 + 写 Cookie */
+static final class CsrfCookieFilter extends org.springframework.web.filter.OncePerRequestFilter {
+    @Override
+    protected void doFilterInternal(
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response,
+            jakarta.servlet.FilterChain filterChain)
+            throws jakarta.servlet.ServletException, java.io.IOException {
+        org.springframework.security.web.csrf.CsrfToken token =
+                (org.springframework.security.web.csrf.CsrfToken)
+                        request.getAttribute(org.springframework.security.web.csrf.CsrfToken.class.getName());
+        if (token != null) {
+            token.getToken(); // ← 访问一次即可触发生成/保存到 Cookie
+        }
+        filterChain.doFilter(request, response);
+    }
+}}
+

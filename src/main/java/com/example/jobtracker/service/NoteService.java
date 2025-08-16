@@ -7,11 +7,18 @@ import com.example.jobtracker.dto.NoteDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
+
+import jakarta.transaction.Transactional;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,12 +32,13 @@ import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
 
 @Service
 public class NoteService {
-    private final NoteRepository noteRepository;
-    private final UserRepository userRepository;
-private final JobApplicationRepository jobRepo;
-    public NoteService(NoteRepository noteRepository, UserRepository userRepository,JobApplicationRepository jobRepo) {
-        this.noteRepository = noteRepository;
-        this.userRepository = userRepository;
+    private final NoteRepository noteRepo;
+    private final UserRepository userRepo;
+    private final JobApplicationRepository jobRepo;
+
+    public NoteService(NoteRepository noteRepository, UserRepository userRepository, JobApplicationRepository jobRepo) {
+        this.noteRepo = noteRepository;
+        this.userRepo= userRepository;
         this.jobRepo = jobRepo;
     }
 
@@ -39,9 +47,9 @@ private final JobApplicationRepository jobRepo;
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         // ② 查找数据库中对应的 User 对象
-        User user = userRepository.findByUsername(username).orElseThrow();
+        User user = userRepo.findByUsername(username).orElseThrow();
 
-       Note note = new Note();
+        Note note = new Note();
 
         // ③ 创建 Note 实体对象，并设置字段
 
@@ -53,60 +61,56 @@ private final JobApplicationRepository jobRepo;
         note.setUser(user);
 
         // ⑤ 保存
-        noteRepository.save(note);
-    }    public void save(Note note) {
-        noteRepository.save(note);
+        noteRepo.save(note);
     }
 
-
+    public void save(Note note) {
+        noteRepo.save(note);
+    }
 
 
     public Page<NoteDto> findByJobIdPaged(UUID jobId, int page, int size) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
         PageRequest request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return noteRepository.findByUserUsernameAndJobId(username,jobId,request)
+        return noteRepo.findByUserUsernameAndJobId(username, jobId, request)
                 .map(note -> {
                     NoteDto dto = new NoteDto();
                     dto.setJobId(note.getJobId());
                     dto.setContent(note.getContent());
                     dto.setCreatedAt(note.getCreatedAt());
-                    dto.setFilePaths(note.getFilePaths()); // 设置附件路径
+                    dto.setFilePaths(note.getFilePaths() == null ? List.of() : new ArrayList<>(note.getFilePaths()));// 设置附件路径
                     return dto;
                 });
     }
 
 
-
-
-
-
-
     public void delete(UUID id) {
-        noteRepository.deleteById(id);
+        noteRepo.deleteById(id);
     }
 
 
-
+    @Transactional
     public void checkOwner(UUID id) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();//获取当前登录用户
 
-        Note note = noteRepository.findById(id)//加载note，并检查是不是当前用户的
+        Note note = noteRepo.findById(id)//加载note，并检查是不是当前用户的
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (!note.getUser().getUsername().equals(username)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
 
-        noteRepository.delete(note);
+        noteRepo.delete(note);
     }
 
     public Note findById(UUID id) {//4-5対応controller。findById
-        return noteRepository.findById(id)
+        return noteRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该职位"));
     }
 
-    public void saveAll(List<NoteDto> notes) {
-    }
-}
 
+
+
+
+}

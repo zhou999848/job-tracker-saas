@@ -8,6 +8,8 @@ import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
+import com.example.jobtracker.service.NoteService;
+import com.example.jobtracker.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -26,8 +28,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import com.example.jobtracker.security.JwtUtil;
@@ -41,13 +48,14 @@ public class PageController {
     private final JobApplicationRepository jobRepo;
     private final NoteRepository noteRepo;
     private final UserRepository userRepo;
-
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo) {
+    private final NoteService service;
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo,NoteService service) {
         this.jobRepo = jobRepo;
         this.noteRepo = noteRepo;
         this.userRepo = userRepo;
         this.authManager = authManager;
         this.jwtUtil = jwtUtil;
+        this.service = service;
     }
 
     private String getCurrentUsername() {
@@ -99,7 +107,61 @@ public class PageController {
         model.addAttribute("pageSize", size);
         return "jobs";  // 指向 templates/jobs.html
     }
+///add note is included in the NoteController.java
+@GetMapping("/uploadMulti")
+public String showAddNoteForm(Model model){
+    model.addAttribute("jobs",new JobApplicationDto());
+    return "add-note"; // 返回上传页面的视图名
+}
 
+    @PostMapping("/uploadMulti")
+    public String uploadMulti(@ModelAttribute JobApplicationDto jobDto, @RequestParam("files") List<MultipartFile> files,
+                              @RequestParam("jobId") UUID jobId,
+                              @RequestParam("content") String content
+                             ) throws IOException {
+
+        String username = getCurrentUsername();
+        List<String> savedPaths = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            if (file.isEmpty()) continue;
+            String contentType = file.getContentType();
+            if (!contentType.startsWith("image/") && !contentType.startsWith("audio/") && !contentType.equals("application/pdf")) {
+                continue;
+            }
+
+            String path = System.getProperty("user.dir") + "/uploads/notes/" + file.getOriginalFilename();
+            File dest = new File(path);
+            file.transferTo(dest);
+            logger.info("即将保存路径: {}", path);   // 新增日志
+            savedPaths.add(path);
+        }
+        logger.info("全部待保存附件路径: {}", savedPaths); // 新增日志
+
+
+
+        User user = userRepo.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用?不存在/未登?"));
+        Note note = new Note();
+        note.setUser(user);
+        note.setJobId(jobId);
+        note.setContent(content);
+        note.setFilePaths(savedPaths);
+        logger.info("Note?象 filePaths: {}", note.getFilePaths()); // 新增日志
+        note.setCreatedAt(LocalDateTime.now());
+        service.save(note);
+
+        logger.info("【EN】User={} Uploaded {} files / 【中文】用?={} 上? {} 个文件 / 【日本語】ユーザー={} が{} ファイルアップロード: jobId={}", username, savedPaths.size(), username, savedPaths.size(), username, savedPaths.size(), jobId);
+        // return ("上?成功，共上? " + savedPaths.size() + " 个文件");
+
+        return "redirect:/jobs/" + jobId + "/notes"; }// 保存后重定向到该职位的笔记页面
+
+
+
+    /**add a new job application
+     * ✅ 添加职位申请 / Add a new job application
+     * [POST] /jobs/add
+     */
 
     public void addJob(@RequestBody @Valid JobApplicationDto jobDto) {
         logger.info("【EN】Creating job: company={}, position={} / 【中文】创建职位：公司={}，职位={} / 【日本語】職務作成：会社={}、職種={}", jobDto.getCompany(), jobDto.getPosition(), jobDto.getCompany(), jobDto.getPosition(), jobDto.getCompany(), jobDto.getPosition());
@@ -123,6 +185,7 @@ public class PageController {
         // ⑤ 保存
         jobRepo.save(job);
     }
+
 
     @GetMapping("/jobs/add")
     public String showAddJobForm(Model model) {
@@ -155,9 +218,12 @@ public class PageController {
         return noteRepo.findByUserUsernameAndJobId(username, jobId, request)
                 .map(note -> {
                     NoteDto dto = new NoteDto();
+                    dto.setId(note.getId()); // 添加 ID 字段,delete時用
                     dto.setJobId(note.getJobId());
                     dto.setContent(note.getContent());
                     dto.setCreatedAt(note.getCreatedAt());
+                    dto.setFilePaths(note.getFilePaths() == null ? List.of() : new ArrayList<>(note.getFilePaths())); // 设置附件路径
+                    logger.info("【EN】Note fetched: id={}, content={}, createdAt={}, filePaths={}", dto.getId(), dto.getContent(), dto.getCreatedAt(), dto.getFilePaths());
                     return dto;
                 });
     }
