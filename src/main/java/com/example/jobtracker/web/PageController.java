@@ -1,8 +1,10 @@
 package com.example.jobtracker.web;
 
 import com.example.jobtracker.domain.User;
+import com.example.jobtracker.dto.ChangePasswordRequest;
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.dto.NoteDto;
+import com.example.jobtracker.dto.UpdateProfileRequest;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
@@ -19,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +42,7 @@ import java.util.List;
 import java.util.UUID;
 import com.example.jobtracker.security.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class PageController {
@@ -49,13 +53,16 @@ public class PageController {
     private final NoteRepository noteRepo;
     private final UserRepository userRepo;
     private final NoteService service;
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo,NoteService service) {
+    private final UserService userService;
+
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService service,UserService userService) {
         this.jobRepo = jobRepo;
         this.noteRepo = noteRepo;
         this.userRepo = userRepo;
         this.authManager = authManager;
         this.jwtUtil = jwtUtil;
         this.service = service;
+        this.userService = userService;
     }
 
     private String getCurrentUsername() {
@@ -107,18 +114,19 @@ public class PageController {
         model.addAttribute("pageSize", size);
         return "jobs";  // 指向 templates/jobs.html
     }
-///add note is included in the NoteController.java
-@GetMapping("/uploadMulti")
-public String showAddNoteForm(Model model){
-    model.addAttribute("jobs",new JobApplicationDto());
-    return "add-note"; // 返回上传页面的视图名
-}
+
+    /// add note is included in the NoteController.java
+    @GetMapping("/uploadMulti")
+    public String showAddNoteForm(Model model) {
+        model.addAttribute("jobs", new JobApplicationDto());
+        return "add-note"; // 返回上传页面的视图名
+    }
 
     @PostMapping("/uploadMulti")
     public String uploadMulti(@ModelAttribute JobApplicationDto jobDto, @RequestParam("files") List<MultipartFile> files,
                               @RequestParam("jobId") UUID jobId,
                               @RequestParam("content") String content
-                             ) throws IOException {
+    ) throws IOException {
 
         String username = getCurrentUsername();
         List<String> savedPaths = new ArrayList<>();
@@ -139,7 +147,6 @@ public String showAddNoteForm(Model model){
         logger.info("全部待保存附件路径: {}", savedPaths); // 新增日志
 
 
-
         User user = userRepo.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用?不存在/未登?"));
         Note note = new Note();
@@ -154,11 +161,12 @@ public String showAddNoteForm(Model model){
         logger.info("【EN】User={} Uploaded {} files / 【中文】用?={} 上? {} 个文件 / 【日本語】ユーザー={} が{} ファイルアップロード: jobId={}", username, savedPaths.size(), username, savedPaths.size(), username, savedPaths.size(), jobId);
         // return ("上?成功，共上? " + savedPaths.size() + " 个文件");
 
-        return "redirect:/jobs/" + jobId + "/notes"; }// 保存后重定向到该职位的笔记页面
+        return "redirect:/jobs/" + jobId + "/notes";
+    }// 保存后重定向到该职位的笔记页面
 
 
-
-    /**add a new job application
+    /**
+     * add a new job application
      * ✅ 添加职位申请 / Add a new job application
      * [POST] /jobs/add
      */
@@ -301,7 +309,19 @@ public String showAddNoteForm(Model model){
 
 
     @PostMapping("/logout")
-    public String doLogout(HttpServletResponse response) {
+    public String doLogout(HttpServletResponse response, HttpServletRequest req) {
+        // 1. 让 Spring Security 处理 session
+        req.getSession().invalidate();
+
+        // 2. 主动发一个清除 JSESSIONID 的 Set-Cookie
+        ResponseCookie jsid = ResponseCookie.from("JSESSIONID", "")
+                .path("/")
+                .maxAge(0)
+                .httpOnly(true)
+                .build();
+        response.addHeader("Set-Cookie", jsid.toString());
+
+
         // 本地（http）当前使用：Lax + 非 Secure
         var c1 = org.springframework.http.ResponseCookie.from("JWT", "")
                 .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(0).build();
@@ -321,4 +341,41 @@ public String showAddNoteForm(Model model){
 
         return "redirect:/login";
     }
-}
+
+        @GetMapping("/profile")
+        public String profile(Model model) {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User user = userRepo.findByUsername(username).orElseThrow();
+            model.addAttribute("me", user);
+            return "profile";
+        }
+
+        @PostMapping("/profile/update")
+        public String updateProfile(@Valid UpdateProfileRequest req, RedirectAttributes ra) {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            userService.updateProfile(username, req);
+            ra.addFlashAttribute("ok", "资料已更新");
+            return "redirect:/profile";
+        }
+
+        @PostMapping("/profile/change-password")
+        public String changePassword(@Valid ChangePasswordRequest req,
+                                     HttpServletResponse response,
+                                     RedirectAttributes ra) {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            userService.changePassword(username, req);
+
+            // 清 JWT Cookie 并跳转登录
+            ResponseCookie cleared = ResponseCookie.from("JWT", "")
+                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build();
+            response.addHeader(HttpHeaders.SET_COOKIE, cleared.toString());
+
+            ra.addFlashAttribute("ok", "密码已修改，请重新登录");
+            return "redirect:/login";
+        }
+    }
+
+
+
+
+

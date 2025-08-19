@@ -1,9 +1,16 @@
 package com.example.jobtracker.web;
 
 
+import com.example.jobtracker.dto.ChangePasswordRequest;
+import com.example.jobtracker.dto.UpdateProfileRequest;
 import com.example.jobtracker.dto.UserDto;
 import com.example.jobtracker.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.jobtracker.dto.LoginRequest;//("/login")
@@ -75,5 +82,35 @@ public class UserController {
             logger.warn("[Login Failed] username={} - 登录失败 / Login failed: {}", request.getUsername(), e.getMessage());
             return ResponseEntity.status(401).body("用户名或密码错误 / Invalid username or password");
         }
+    }
+    @GetMapping("/me")
+    public Map<String, Object> getMe() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        // 根据需要返回字段（避免泄漏敏感信息）
+        return Map.of("username", username);
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody UpdateProfileRequest req) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        service.updateProfile(username, req);
+        return ResponseEntity.ok(Map.of("message", "Profile updated"));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest req,
+                                            HttpServletResponse response) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+       service.changePassword(username, req);
+
+        // 关键：让旧 JWT 立即失效 —— 简单做法：清 Cookie，前端重定向到登录
+        ResponseCookie cleared = ResponseCookie.from("JWT", "")
+                .httpOnly(true).secure(true).sameSite("None")
+                .path("/").maxAge(0).build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cleared.toString());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Password changed, please login again"
+        ));
     }
 }
