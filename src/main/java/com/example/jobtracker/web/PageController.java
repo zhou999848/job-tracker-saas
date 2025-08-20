@@ -102,7 +102,7 @@ public class PageController {
                            @RequestParam(defaultValue = "5") int size,
                            @RequestParam(defaultValue = "appliedDate") String sortBy,
                            @RequestParam(defaultValue = "desc") String direction,
-                           Model model) {
+                          Model model) {
         String username = getCurrentUsername();
         logger.info("[Show Jobs] User={} 查看职位列表 / Viewing job list", username);
         Page<JobApplicationDto> jobs = list(page, size, sortBy, direction);
@@ -112,6 +112,7 @@ public class PageController {
         model.addAttribute("sortBy", sortBy);
         model.addAttribute("direction", direction);
         model.addAttribute("pageSize", size);
+
         return "jobs";  // 指向 templates/jobs.html
     }
 
@@ -240,6 +241,7 @@ public class PageController {
     public String showNotes(@PathVariable UUID jobId,
                             @RequestParam(defaultValue = "0") int page,
                             @RequestParam(defaultValue = "3") int size,
+
                             Model model) {
         String username = getCurrentUsername();
         logger.info("[Show Notes] User={} 查看 jobId={} 的笔记 / Viewing notes for jobId={}", username, jobId, jobId);
@@ -250,6 +252,7 @@ public class PageController {
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", notes.getTotalPages());
         model.addAttribute("pageSize", size);
+
         return "notes";  // 指向 templates/notes.html
     }
 
@@ -275,7 +278,7 @@ public class PageController {
     public String doLogin(@RequestParam String username,
                           @RequestParam String password,
                           @RequestParam(required = false) String redirect,
-                          HttpServletResponse response,
+                          HttpServletResponse response,HttpServletRequest request,
                           Model model) {
         try {
             authManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
@@ -287,7 +290,9 @@ public class PageController {
                     .maxAge(24 * 60 * 60)
                     .build();
             response.addHeader("Set-Cookie", cookie.toString());
-
+            String requestUri = request.getRequestURI();
+            model.addAttribute("basePath", requestUri);       // 例如 /login
+            model.addAttribute("redirect", redirect);         // 透传查询参数
             // ✅ 兜底：redirect 判空 + 安全检查
             if (redirect != null && !redirect.isBlank()
                     && redirect.startsWith("/")
@@ -373,7 +378,16 @@ public class PageController {
             ra.addFlashAttribute("ok", "密码已修改，请重新登录");
             return "redirect:/login";
         }
+    @GetMapping("/error-test")
+    public String errorTest() {
+        // 故意抛异常
+        throw new RuntimeException("手动触发异常");
+    }@GetMapping("/encoding-test") @ResponseBody
+    public String encoding() {
+        return "中文OK 日本語OK ひらがなカタカナ";
     }
+
+}
 
 
 

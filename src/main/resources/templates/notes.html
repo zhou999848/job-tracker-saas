@@ -8,6 +8,11 @@
 
 </head>
 <body>
+<!-- login.html 中（大概率第 9 行） -->
+<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+
+
+
 <h1>note</h1>
 
 <!-- 如果没有笔记 -->
@@ -149,6 +154,6 @@
         }
     });
 </script>
-
+<script src="/js/http.js" defer></script>
 </body>
 </html>

@@ -1,12 +1,23 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-  <meta charset="UTF-8">
-  <title>错误(error)</title>
+    <meta charset="UTF-8">
+    <title th:text="#{app.title}">App</title>
 </head>
 <body>
-<h1>出错了！(something went wrong)</h1>
-<p>可能是请求地址错误，或者数据不存在(The requested address may be incorrect or the data may not exist.)</p>
-<a href="/jobs">返回职位列表(return jobList)</a>
+<h2 th:with="sc=${code} != null ? ${code} : (${status} != null ? ${status} : 500)"
+    th:text="'Error ' + sc">Error</h2>
+
+<p th:text="${#messages.msgOrNull(msgKey)} ?: (${message} ?: (${error} ?: 'Something went wrong'))">
+    Something went wrong
+</p>
+<!-- 校验错误信息 -->
+<ul th:if="${validationMessages != null}">
+    <li th:each="msg : ${validationMessages}" th:text="${msg}">Validation error</li>
+</ul>
+
+<small th:if="${path}" th:text="'Path: ' + ${path}">Path</small><br/>
+
+<a href="javascript:history.back()" th:text="#{btn.back}">Back</a>
 </body>
 </html>

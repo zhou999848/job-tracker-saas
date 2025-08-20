@@ -12,7 +12,6 @@ public class UpdateProfileRequest {
     @Email(message = "Invalid email format")
     @Size(max = 120)
     private String email;
-
     // getters/setters
     public String getDisplayName() {
         return displayName;

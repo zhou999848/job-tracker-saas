@@ -6,6 +6,10 @@
 
 </head>
 <body>
+<!-- login.html 中（大概率第 9 行） -->
+<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+
+
 <h2>addJob</h2>
 
 <form th:action="@{/jobs/add}" method="post">
@@ -27,5 +31,6 @@
 </form>
 
 <a href="/jobs">return jobs</a>
+<script src="/js/http.js" defer></script>
 </body>
 </html>

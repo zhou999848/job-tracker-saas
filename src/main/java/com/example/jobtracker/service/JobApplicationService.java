@@ -6,6 +6,8 @@ import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,8 @@ import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
 
 @Service
 public class JobApplicationService {
+    private static final Logger biz = LoggerFactory.getLogger("BIZ_AUDIT");
+
     private final JobApplicationRepository jobRepository;
     private final UserRepository userRepository;
 
@@ -111,6 +115,7 @@ public class JobApplicationService {
         }
 
         jobRepository.delete(job);
+        biz.info("JOB_DELETE user={} jobId={}", username, id);
     }
 
     public JobApplication findById(UUID id) {//4-5対応controller。findById

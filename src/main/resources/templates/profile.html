@@ -2,11 +2,16 @@
 <!-- Compare this snippet from src/main/resources/templates/profile.html: -->
 <!-- Compare this snippet from src/main/resources/templates/profile.html: -->
 <!DOCTYPE html>
-    <html xmlns:th="http://www.thymeleaf.org"  xmlns:sec="https://www.thymeleaf.org/extras/spring-security">e.html (片段) -->
+    <html xmlns:th="http://www.thymeleaf.org"  xmlns:sec="https://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta name="_csrf" th:content="${_csrf.token}" />
     <meta name="_csrf_header" th:content="${_csrf.headerName}" />
 </head>
+<!-- login.html 中（大概率第 9 行） -->
+<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+
+
+
 
 <h2>个人资料</h2>
 <form th:action="@{/profile/update}" method="post">
@@ -27,6 +32,6 @@
     <input type="password" name="newPassword" required/>
     <button type="submit">修改密码</button>
 </form>
-
+<script src="/js/http.js" defer></script>
 </html>
 

@@ -6,6 +6,10 @@
 
 </head>
 <body>
+<!-- login.html 中（大概率第 9 行） -->
+<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+
+
 <h2>添加note</h2>
 <form action="/uploadMulti" method="post" enctype="multipart/form-data">
     <!-- ✅ 必须：CSRF 隐藏字段 -->
@@ -17,5 +21,6 @@
 </form>
 
 <a href="/jobs/{jobId}/notes">返回列表</a>
+<script src="/js/http.js" defer></script>
 </body>
 </html>

@@ -8,6 +8,10 @@
         <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}" />
         <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}" />
     </head>    <body>
+    <!-- login.html 中（大概率第 9 行） -->
+    <div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+
+
     <h2>已申请职位列表</h2>
 
     <!-- 已登录可见 -->
@@ -117,7 +121,7 @@
         console.log('[Init] delete buttons =', count);
     });
 </script>
-
+    <script src="/js/http.js" defer></script>
 
 </body>
 </html>

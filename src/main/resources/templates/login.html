@@ -6,6 +6,11 @@
     <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}"/></head>
 <body>
+<!-- login.html 中（大概率第 9 行） -->
+<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+
+
+
 <h2>用户登录</h2>
 
 <form th:action="@{/login}" method="post">
@@ -22,6 +27,6 @@
 
 <!-- 错误提示 -->
 <div th:if="${error}" th:text="${error}" ></div>
-
+<script src="/js/http.js" defer></script>
 </body>
 </html>
