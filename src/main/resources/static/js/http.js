@@ -1,4 +1,5 @@
 // static/js/http.js
+
 const CSRF_TOKEN  = document.querySelector('meta[name="_csrf"]')?.content;
 const CSRF_HEADER = document.querySelector('meta[name="_csrf_header"]')?.content;
 
