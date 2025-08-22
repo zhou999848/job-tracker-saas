@@ -10,6 +10,7 @@ import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
+import com.example.jobtracker.security.LoginAttemptService;
 import com.example.jobtracker.service.NoteService;
 import com.example.jobtracker.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,6 +26,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -54,8 +57,9 @@ public class PageController {
     private final UserRepository userRepo;
     private final NoteService service;
     private final UserService userService;
-
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService service,UserService userService) {
+private final LoginAttemptService loginAttemptService;
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService service,UserService userService, LoginAttemptService loginAttemptService) {
+        this.loginAttemptService = loginAttemptService;
         this.jobRepo = jobRepo;
         this.noteRepo = noteRepo;
         this.userRepo = userRepo;
@@ -274,37 +278,88 @@ public class PageController {
         return "login";
     }
 
+    // 假设这是你的 LoginController.java 里的方法
     @PostMapping("/login")
     public String doLogin(@RequestParam String username,
                           @RequestParam String password,
                           @RequestParam(required = false) String redirect,
-                          HttpServletResponse response,HttpServletRequest request,
+                          HttpServletResponse response,
+                          HttpServletRequest request,
                           Model model) {
-        try {
-            authManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
 
-            String token = jwtUtil.generateToken(username);
-            ResponseCookie cookie = ResponseCookie.from("JWT", token)
-                    .httpOnly(true).secure(false)
-                    .sameSite("Lax").path("/")
-                    .maxAge(24 * 60 * 60)
+        // —— 1) 先做空白/格式处理（可选）
+        String uname = (username == null) ? "" : username.trim();
+
+        // —— 2) 防爆破：检查是否已被锁定
+        if (loginAttemptService.isBlocked(uname)) {  // ← 需要注入 LoginAttemptService
+            model.addAttribute("error", "尝试次数过多，账户已暂时锁定");
+            model.addAttribute("redirect", redirect);
+            return "login";
+        }
+
+        try {
+            // —— 3) 调用认证
+            authManager.authenticate(new UsernamePasswordAuthenticationToken(uname, password));
+
+            // —— 4) 登录成功：清除失败计数
+            loginAttemptService.loginSucceeded(uname);
+
+            // ✅ 生成两种 token（你已有 JwtUtil，直接用）
+            String access  = jwtUtil.generateAccessToken(uname);   // 短期，比如 15 分钟
+            String refresh = jwtUtil.generateRefreshToken(uname);  // 长期，比如 7 天
+
+            // ✅ 本地 http 调试 secure(false)；部署到 HTTPS 再改 true
+            boolean secure = request.isSecure(); // 本地一般是 false
+            // 你也可以开发期强制：secure = false;
+
+            // ✅ 写两枚 Cookie（注意 addHeader 调两次，不要用 setHeader）
+            ResponseCookie accessCookie = ResponseCookie.from("ACCESS", access)
+                    .httpOnly(true).secure(secure).sameSite("Lax")
+                    .path("/")                 // 业务请求都会带
+                    .maxAge(15 * 60)          // 示例：15 分钟
                     .build();
-            response.addHeader("Set-Cookie", cookie.toString());
+
+            ResponseCookie refreshCookie = ResponseCookie.from("REFRESH", refresh)
+                    .httpOnly(true).secure(secure).sameSite("Lax")
+                    .path("/api/auth/refresh") // 仅刷新接口会带
+                    .maxAge(7 * 24 * 3600)     // 示例：7 天
+                    .build();
+
+            response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+            // ✅ 原有跳转逻辑保持
             String requestUri = request.getRequestURI();
-            model.addAttribute("basePath", requestUri);       // 例如 /login
-            model.addAttribute("redirect", redirect);         // 透传查询参数
-            // ✅ 兜底：redirect 判空 + 安全检查
+            model.addAttribute("basePath", requestUri);
+            model.addAttribute("redirect", redirect);
             if (redirect != null && !redirect.isBlank()
                     && redirect.startsWith("/")
                     && !redirect.startsWith("/error")
                     && !redirect.startsWith("/login")) {
                 return "redirect:" + redirect.trim();
             }
-            return "redirect:/jobs"; // ✅ 永远有个默认
-        } catch (AuthenticationException e) {
+            return "redirect:/jobs";
+
+        } catch (BadCredentialsException e) {
+            // —— 5) 认证失败：累计失败次数
+            loginAttemptService.loginFailed(uname);
             model.addAttribute("error", "用户名或密码错误");
             model.addAttribute("redirect", redirect);
             return "login";
+
+        } catch (LockedException e) {
+            // （可选分支）如果你的 AuthenticationProvider 内部也会抛 LockedException，可单独处理
+            model.addAttribute("error", "尝试次数过多，账户已暂时锁定");
+            model.addAttribute("redirect", redirect);
+            return "login";
+
+        } catch (AuthenticationException e) {
+            // 其他认证类异常：也算一次失败
+            loginAttemptService.loginFailed(uname);
+            model.addAttribute("error", "登录失败，请重试");
+            model.addAttribute("redirect", redirect);
+            return "login";
+
         } catch (Exception e) {
             model.addAttribute("error", "系统错误，请稍后重试");
             model.addAttribute("redirect", redirect);
@@ -313,41 +368,48 @@ public class PageController {
     }
 
 
+    // 建议放在同一个 Controller 里
+    private void clearAllAuthCookies(HttpServletResponse response) {
+        // 1) 访问令牌：ACCESS（路径 /）
+        // 本地 http（Secure=false, SameSite=Lax）
+        response.addHeader("Set-Cookie", "ACCESS=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
+        // 线上 https（Secure=true, SameSite=None）
+        response.addHeader("Set-Cookie", "ACCESS=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None");
+
+        // 2) 刷新令牌：REFRESH（路径 /api/auth/refresh）
+        // 本地 http
+        response.addHeader("Set-Cookie", "REFRESH=; Path=/api/auth/refresh; Max-Age=0; HttpOnly; SameSite=Lax");
+        // 线上 https
+        response.addHeader("Set-Cookie", "REFRESH=; Path=/api/auth/refresh; Max-Age=0; HttpOnly; Secure; SameSite=None");
+
+        // 3) 兼容历史：若曾用过单一 JWT 名称，顺手清掉（路径 /）
+        response.addHeader("Set-Cookie", "JWT=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
+        response.addHeader("Set-Cookie", "JWT=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None");
+    }
+
     @PostMapping("/logout")
     public String doLogout(HttpServletResponse response, HttpServletRequest req) {
-        // 1. 让 Spring Security 处理 session
-        req.getSession().invalidate();
+        // 1. 让 Spring Session 失效（如果没开 session，这步也安全无害）
+        try {
+            req.getSession(false); // 若无会话不创建
+            if (req.getSession(false) != null) {
+                req.getSession(false).invalidate();
+            }
+        } catch (IllegalStateException ignore) {}
 
-        // 2. 主动发一个清除 JSESSIONID 的 Set-Cookie
-        ResponseCookie jsid = ResponseCookie.from("JSESSIONID", "")
-                .path("/")
-                .maxAge(0)
-                .httpOnly(true)
-                .build();
-        response.addHeader("Set-Cookie", jsid.toString());
+        // 2. 主动清 JSESSIONID（覆盖 http/https 两种可能）
+        response.addHeader("Set-Cookie", "JSESSIONID=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
+        response.addHeader("Set-Cookie", "JSESSIONID=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None");
 
+        // 3. 清除认证相关 Cookie（ACCESS / REFRESH / 兼容旧 JWT）
+        clearAllAuthCookies(response);
 
-        // 本地（http）当前使用：Lax + 非 Secure
-        var c1 = org.springframework.http.ResponseCookie.from("JWT", "")
-                .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(0).build();
-        response.addHeader("Set-Cookie", c1.toString());
-
-        // 历史/线上（https）可能使用：None + Secure
-        var c2 = org.springframework.http.ResponseCookie.from("JWT", "")
-                .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build();
-        response.addHeader("Set-Cookie", c2.toString());
-
-        // 保险：Servlet API 再清一次
-        var legacy = new jakarta.servlet.http.Cookie("JWT", "");
-        legacy.setHttpOnly(true);
-        legacy.setPath("/");
-        legacy.setMaxAge(0);
-        response.addCookie(legacy);
-
+        // 4. 回登录页
         return "redirect:/login";
     }
 
-        @GetMapping("/profile")
+
+    @GetMapping("/profile")
         public String profile(Model model) {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
             User user = userRepo.findByUsername(username).orElseThrow();
@@ -363,21 +425,19 @@ public class PageController {
             return "redirect:/profile";
         }
 
-        @PostMapping("/profile/change-password")
-        public String changePassword(@Valid ChangePasswordRequest req,
-                                     HttpServletResponse response,
-                                     RedirectAttributes ra) {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            userService.changePassword(username, req);
+    @PostMapping("/profile/change-password")
+    public String changePassword(@Valid ChangePasswordRequest req,
+                                 HttpServletResponse response,
+                                 RedirectAttributes ra) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        userService.changePassword(username, req); // 这里内部已更新 passwordChangedAt
 
-            // 清 JWT Cookie 并跳转登录
-            ResponseCookie cleared = ResponseCookie.from("JWT", "")
-                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build();
-            response.addHeader(HttpHeaders.SET_COOKIE, cleared.toString());
+        // 修改密码后：清除所有认证 Cookie（强制所有端重新登录）
+        clearAllAuthCookies(response);
 
-            ra.addFlashAttribute("ok", "密码已修改，请重新登录");
-            return "redirect:/login";
-        }
+        ra.addFlashAttribute("ok", "密码已修改，请重新登录");
+        return "redirect:/login";
+    }
     @GetMapping("/error-test")
     public String errorTest() {
         // 故意抛异常

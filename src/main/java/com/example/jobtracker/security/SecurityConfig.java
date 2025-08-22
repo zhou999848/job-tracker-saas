@@ -136,7 +136,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/login", "/logout").permitAll()
-                        .requestMatchers("/css/**","/images/**","/js/**","/style.css","/favicon.ico", "/error").permitAll()
+                        .requestMatchers("/css/**","/images/**","/api/auth/refresh","/js/**","/style.css","/favicon.ico", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e.authenticationEntryPoint(htmlApiAwareEntryPoint));

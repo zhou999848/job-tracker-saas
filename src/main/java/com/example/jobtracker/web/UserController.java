@@ -70,7 +70,7 @@ public class UserController {
 
             logger.info("[Login Success] username={} - 登录成功 / Authentication successful", request.getUsername());
 
-            String token = jwtUtil.generateToken(request.getUsername());
+            String token = jwtUtil.generateAccessToken(request.getUsername());
 
             Map<String, String> response = new HashMap<>();
             response.put("token", token);

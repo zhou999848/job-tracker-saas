@@ -1,22 +1,14 @@
 package com.example.jobtracker.security;
 
 import com.example.jobtracker.domain.User;
+import com.example.jobtracker.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Optional;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,19 +17,20 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.example.jobtracker.security.MyUserDetailsService;
-import com.example.jobtracker.repository.UserRepository;
-import com.example.jobtracker.security.JwtUtil;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
-    private static final Duration IAT_SKEW = Duration.ofSeconds(2); // iat vs DB 时间精度容差
+    /** iat 与 DB 时间精度的容差（防止边界时刻误判） */
+    private static final Duration IAT_SKEW = Duration.ofSeconds(2);
 
     private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;                     // JWT 工具类 / Utility for JWT parsing
-    private final MyUserDetailsService userDetailsService; // 自定义用户信息加载服务 / Custom UserDetailsService
+    private final JwtUtil jwtUtil;                       // ✅ 你新版的 JwtUtil（无旧方法）
+    private final MyUserDetailsService userDetailsService;
 
     public JwtFilter(JwtUtil jwtUtil,
                      MyUserDetailsService userDetailsService,
@@ -47,143 +40,144 @@ public class JwtFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
-    /**
-     * 指定哪些请求不需要进入 JWT 检查
-     * Specify public endpoints to skip JWT filtering
-     */
+    /** 哪些请求不进 JWT 过滤 */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.equals("/login")
+        return path.equals("/login")                 // 表单页
                 || path.equals("/logout")
+                // 允许未登录访问的新认证接口
+                || path.equals("/api/auth/login")
+                || path.equals("/api/auth/refresh")
+                // （如果你的旧接口还在用，可以放行；否则可删除下面两行）
                 || path.equals("/api/users/login")
                 || path.equals("/api/users/register")
-                // ↓ 静态资源放行
+                // 静态资源
                 || path.startsWith("/css/")
                 || path.equals("/style.css")
                 || path.startsWith("/images/")
                 || path.startsWith("/js/")
                 || path.equals("/favicon.ico");
-        // ⚠️ 删除了 path.equals("application/pdf")：那不是 URL 路径，会误绕过过滤器
     }
 
-    /**
-     * 核心过滤逻辑 / Main filter logic
-     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain)
+                                    FilterChain chain)
             throws ServletException, IOException {
 
-        // 只有在当前还未认证时才尝试用 JWT 认证（避免覆盖已有状态）
+        // 只有当当前没有认证信息时，才尝试基于 JWT 建立认证
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            String token = resolveToken(request); // 先 Cookie("JWT")，再 Authorization: Bearer
-            //aaaaa
-            if (token != null && jwtUtil.validateSignature(token)) {
+            String token = resolveAccessToken(request);      // ✅ 只解析 Bearer / ACCESS
+            if (token != null) {
                 try {
-                    String username = jwtUtil.getUsernameFromToken(token);
-                    Instant tokenIat = jwtUtil.getIssuedAt(token); // 从 claims.getIssuedAt()
-                    if (log.isDebugEnabled()) {
-                        log.debug("JWT found. uri={}, user={}, iat={}", request.getRequestURI(), username, tokenIat);
+                    // 1) 过期/非法直接当未登录处理（不抛 401，由后续 EntryPoint/Advice 处理）
+                    if (!jwtUtil.validateAccessToken(token)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[JWT] access token invalid or expired. uri={}", request.getRequestURI());
+                        }
+                        clearAccessCookie(response, request.isSecure());   // ✅ 清 ACCESS，不动 REFRESH
+                        chain.doFilter(request, response);
+                        return;
                     }
-                    //aaaaa
-                    // DB 取密码修改时间（只查这一列最省）
+
+                    // 2) 解析用户名 + iat
+                    String username = jwtUtil.getUsername(token);
+                    Instant tokenIat = jwtUtil.getIssuedAt(token);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[JWT] token accepted preliminarily. uri={}, user={}, iat={}",
+                                request.getRequestURI(), username, tokenIat);
+                    }
+
+                    // 3) passwordChangedAt 失效策略：若 token.iat <= pwdChangedAt(+skew) 则判旧
                     Instant pwdAt = userRepository.findByUsername(username)
                             .map(User::getPasswordChangedAt)
                             .orElse(null);
 
-                    // 判旧：token 的 iat ≤ passwordChangedAt(+容差) → 旧 token
-                    boolean invalidByPwd = (pwdAt != null) &&
+                    boolean invalidByPwdChange = (pwdAt != null)
+                            && (tokenIat == null || !tokenIat.isAfter(pwdAt.plus(IAT_SKEW)));
 
-                            (tokenIat == null || !tokenIat.isAfter(pwdAt.plus(IAT_SKEW)));
-
-                    if (invalidByPwd) {
+                    if (invalidByPwdChange) {
                         if (log.isDebugEnabled()) {
-                            log.debug("Reject JWT due to password change. uri={}, iat={}, passwordChangedAt={}",
+                            log.debug("[JWT] reject due to password change. uri={}, iat={}, pwdChangedAt={}",
                                     request.getRequestURI(), tokenIat, pwdAt);
                         }
-                        // 关键：清掉浏览器里的 JWT，避免后续每次都带旧 token
-                        expireJwtCookie(response);
-                        // 关键：早返回（继续链，但不设置认证；避免后续任何地方“复活”）
-                        filterChain.doFilter(request, response);
+                        clearAccessCookie(response, request.isSecure());
+                        chain.doFilter(request, response);
                         return;
                     }
 
-                    // 通过校验后才创建认证信息
+                    // 4) 构建认证并放进 SecurityContext
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    UsernamePasswordAuthenticationToken authToken =
+                    UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
 
                     if (log.isDebugEnabled()) {
-                        log.debug("JWT accepted. uri={}, user={}, iat={}, passwordChangedAt={}",
-                                request.getRequestURI(), username, tokenIat, pwdAt);
+                        log.debug("[JWT] authenticated. uri={}, user={}", request.getRequestURI(), username);
                     }
 
-                } catch (io.jsonwebtoken.ExpiredJwtException e) {
-                    // Token 过期 / Token expired
-                    log.info("[JWT] Token expired: {}", e.getMessage());
-                    // 过期也清一次 Cookie，避免浏览器反复带过期 token
-                    expireJwtCookie(response);
-                } catch (io.jsonwebtoken.security.SignatureException e) {
-                    // 签名不匹配 / Invalid signature
-                    log.warn("[JWT] Invalid signature: {}", e.getMessage());
                 } catch (io.jsonwebtoken.JwtException e) {
-                    // 其他 JWT 解析错误 / Other JWT errors
-                    log.warn("[JWT] Invalid token: {}", e.getMessage());
+                    // 签名不匹配、格式错误等
+                    log.warn("[JWT] invalid token: {}", e.getMessage());
+                    clearAccessCookie(response, request.isSecure());
                 } catch (Exception e) {
-                    // 未预料的错误 / Unexpected errors
-                    log.error("[JWT] Unexpected error when authenticating", e);
+                    log.error("[JWT] unexpected auth error", e);
                 }
             }
         }
 
-        // 放行请求，继续后续过滤器 / Continue filter chain
-        filterChain.doFilter(request, response);
+        // 放行
+        chain.doFilter(request, response);
     }
 
-    /**
-     * 从 Authorization Bearer 或 Cookie "JWT" 中解析 Token
-     * Resolve token from Authorization Bearer or Cookie "JWT".
-     */
-    private String resolveToken(HttpServletRequest request) {
-        // 1) Authorization: Bearer
+    /** 只解析访问令牌：Authorization: Bearer 优先，其次 Cookie: ACCESS */
+    private String resolveAccessToken(HttpServletRequest request) {
+        // 1) Authorization: Bearer <token>
         String header = request.getHeader("Authorization");
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             String t = header.substring(7).trim();
             if (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
                 t = t.substring(1, t.length() - 1);
             }
-            return t.isEmpty() ? null : t;
+            if (!t.isEmpty()) return t;
         }
 
-        // 2) Cookie: JWT
-        if (request.getCookies() != null) {
-            for (Cookie c : request.getCookies()) {
-                if ("JWT".equals(c.getName())) {
-                    String t = c.getValue();
-                    if (t != null) {
-                        t = t.trim();
-                        if (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
-                            t = t.substring(1, t.length() - 1);
-                        }
-                        return t.isEmpty() ? null : t;
+        // 2) Cookie: ACCESS
+        return readCookie(request, "ACCESS");
+    }
+
+    private String readCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie c : cookies) {
+            if (name.equals(c.getName())) {
+                String v = c.getValue();
+                if (v != null) {
+                    v = v.trim();
+                    if (v.length() >= 2 && v.startsWith("\"") && v.endsWith("\"")) {
+                        v = v.substring(1, v.length() - 1);
                     }
+                    return v;
                 }
             }
         }
         return null;
     }
 
-    /** 清空 JWT Cookie（当前浏览器端） */
-    private void expireJwtCookie(HttpServletResponse response) {
-        // 按你项目的 Cookie 属性调整 secure/sameSite
-        String expired = "JWT=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax";
-        // 如果是 HTTPS，建议加上 "; Secure"
-        response.addHeader("Set-Cookie", expired);
+    /** 只清除“访问令牌”Cookie（ACCESS）；不清除 REFRESH（留给前端去 /api/auth/refresh 自动续签） */
+    private void clearAccessCookie(HttpServletResponse response, boolean secure) {
+        // 注意 SameSite：如果你的站点需要跨站调用刷新，按需改为 "None; Secure"
+        StringBuilder sb = new StringBuilder("ACCESS=; Path=/; Max-Age=0; HttpOnly; ");
+        if (secure) {
+            sb.append("Secure; SameSite=Lax"); // HTTPS 场景
+        } else {
+            sb.append("SameSite=Lax");         // 本地 HTTP 调试
+        }
+        response.addHeader("Set-Cookie", sb.toString());
     }
 }
+
+
