@@ -51,7 +51,8 @@ public class SecurityConfig {
 // SecurityConfig
 
 
-    @Bean // 仅调试：保证数据库密码为 BCrypt
+    @Bean
+        // 仅调试：保证数据库密码为 BCrypt
     CommandLineRunner seed(UserRepository repo, PasswordEncoder pe) {
         return args -> repo.findByUsername("user1").orElseGet(() -> {
             var u = new com.example.jobtracker.domain.User();
@@ -62,9 +63,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-    @Bean @Primary
+    @Bean
+    @Primary
     public MyUserDetailsService myUserDetailsService(UserRepository userRepo) {
         return new MyUserDetailsService(userRepo);
     }
@@ -96,7 +100,9 @@ public class SecurityConfig {
             } else {
                 String target = (uri == null || "/error".equals(uri)) ? "/jobs" : uri;
                 String redirect = URLEncoder.encode(target, StandardCharsets.UTF_8);
-                res.sendRedirect("/login?redirect=" + redirect); // ← 不用预览特性
+                // 先尝试静默刷新；失败的话，控制器里会再跳 /login
+             // res.sendRedirect(STR."/login?redirect=\{redirect}");
+             res.sendRedirect("/auth/silent-refresh?redirect=" + redirect);
             }
         };
     }
@@ -106,66 +112,31 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtFilter jwtFilter,
             AuthenticationEntryPoint htmlApiAwareEntryPoint) throws Exception {
-        // 1) 真正用上?配置?的 Cookie ??（可被 JS ?到，便于 fetch 写 header）
-       CookieCsrfTokenRepository repo = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        repo.setCookiePath("/");                 // 全站有效
-        repo.setCookieName("XSRF-TOKEN-V2");     // ?一新名字，避免?史残留
-
-        // 2) ??：使用 XorCsrfTokenRequestAttributeHandler（会?来自 Header/表?的掩? token 做解掩?）
-       var xor = new org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler();
-        // 若?的表?是 multipart 或需要从表?字段?取 token，也打??行：
-        // xor.setTokenFromMultipartDataEnabled(true);
 
         http
-                .formLogin(f -> f.disable())     // 用?自己的 /login
-                .logout(l -> l.disable())        // 用?自己的 /logout
-                .csrf(csrf -> csrf
-                                .csrfTokenRepository(repo)                  // ? 用上 repo
-                                .csrfTokenRequestHandler(xor)    // ? 表??藏字段可用
-                                // 如果登?是 JSON/没有 CSRF 字段，建?忽略：
+                // ?用自定? /login、/logout
+                .formLogin(f -> f.disable())
+                .logout(l -> l.disable())
 
-                                .ignoringRequestMatchers("/api/**")   //在 SecurityConfig 把 /logout 加? CSRF 忽略： ?能保???在的 @PostMapping("/logout") 一定?到，从而把 Cookie 清掉。
-                        // 更安全（?期做法）保持 CSRF ??，不忽略 /logout，在?面表?里? CSRF ?藏域：
-                        // .ignoringRequestMatchers("/logout") // 若登出不是表?，??忽略
-                )
-                .sessionManagement(sm -> sm
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .maximumSessions(100)
-                .sessionRegistry(sessionRegistry())
-        )//IF_REQUIRED IF_REQUIRED
+                // ?? 完全?? CSRF（无状? + JWT）
+                .csrf(csrf -> csrf.disable())
+
+                // 无状?
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // ????（保持?原来的）
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/login", "/logout").permitAll()
-                        .requestMatchers("/css/**","/images/**","/api/auth/refresh","/js/**","/style.css","/favicon.ico", "/error").permitAll()
+                        .requestMatchers("/css/**","/images/**","/api/auth/refresh","/register","/api/users/register","/auth/silent-refresh","/js/**",
+                                "/style.css","/favicon.ico","/error").permitAll()
                         .anyRequest().authenticated()
                 )
+
                 .exceptionHandling(e -> e.authenticationEntryPoint(htmlApiAwareEntryPoint));
-// ? token 在?染?面前就被“触?”并写入 Cookie
-       http.addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
-        // ??：注入“?例”，不要再?用无参方法
+
+        // 仍然? JWT ??器?在 UsernamePasswordAuthenticationFilter 之前
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-    //新し   ?制“取一下” token，触?生成 + 写 Cookie */
-    static final class CsrfCookieFilter extends org.springframework.web.filter.OncePerRequestFilter {
-        @Override
-        protected void doFilterInternal(
-                jakarta.servlet.http.HttpServletRequest request,
-                jakarta.servlet.http.HttpServletResponse response,
-                jakarta.servlet.FilterChain filterChain)
-                throws jakarta.servlet.ServletException, java.io.IOException {
-            org.springframework.security.web.csrf.CsrfToken token =
-                    (org.springframework.security.web.csrf.CsrfToken)
-                            request.getAttribute(org.springframework.security.web.csrf.CsrfToken.class.getName());
-            if (token != null) {
-                token.getToken(); // ← ??一次即可触?生成/保存到 Cookie
-            }
-            filterChain.doFilter(request, response);
-        }
-    }
-}
-
-
-
-
+    }}

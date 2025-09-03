@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale}">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="#{page.noteEdit.title}">编辑笔记</title>
+</head>
+<body>
+<!-- 多语言切换 -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{page.noteEdit.heading}">编辑笔记</h2>
+
+<form th:action="@{/notes/edit/{id}(id=${note.id})}" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="jobId" th:value="${jobId}"/>
+
+    <label for="content" th:text="#{note.form.content}">内容：</label><br/>
+    <textarea id="content" name="content" rows="8" th:text="${note.content}"
+              th:placeholder="#{note.form.contentPlaceholder}">请输入笔记内容</textarea>
+
+    <div style="margin-top:8px;">
+        <strong th:text="#{note.form.existingAttachmentsTitle}">已存在的附件（勾选要删除）：</strong>
+        <div th:if="${note.filePaths == null or #lists.isEmpty(note.filePaths)}"
+             th:text="#{note.form.noAttachment}">无附件</div>
+
+        <ul th:if="${note.filePaths != null}">
+            <li th:each="p : ${note.filePaths}">
+                <label>
+                    <input type="checkbox" name="removeFiles" th:value="${p}"/>
+                    <!-- 仅显示文件名：你若已在后端处理过可直接用；此处直接显示 p -->
+                    <!--这行的href无法使用，直接给它变成文本-->        <a
+                       th:text="${p}"
+                       th:attr="aria-label=#{note.form.attachment}"
+                       target="_blank">附件</a>
+                </label>
+            </li>
+        </ul>
+    </div>
+
+    <div style="margin-top:8px;">
+        <strong th:text="#{note.form.addAttachmentsTitle}">新增附件：</strong>
+        <input type="file" name="newFiles" multiple
+               accept="image/*,audio/*,application/pdf"
+               th:attr="aria-label=#{note.form.addAttachmentsTitle}"/>
+    </div>
+
+    <div style="margin-top:12px;">
+        <button type="submit" th:text="#{note.form.save}">保存</button>
+        <a th:href="@{/jobs/{jobId}/notes(jobId=${jobId})}" th:text="#{note.form.backToList}">返回笔记列表</a>
+    </div>
+    <script src="/js/http.js" defer></script>
+</form>
+</body>
+</html>
+

@@ -1,36 +1,54 @@
+
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="https://www.thymeleaf.org/extras/spring-security"
+      lang="en" th:lang="${#locale}">
 <head>
     <meta charset="UTF-8">
-    <title>addJob</title>
-
+    <title th:text="#{addJob.title}">Add Job</title>
 </head>
 <body>
-<!-- login.html 中（大概率第 9 行） -->
-<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+<!-- 多语言切换（保持你的片段引入） -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
+<h2 th:text="#{addJob.heading}">Add Job</h2>
 
-<h2>addJob</h2>
+<form th:action="@{/jobs/add}" method="post" th:object="${form}">
+    <!-- ✅ 建议启用 CSRF：解开任意一种 -->
+    <!-- <sec:csrfInput/> -->
+    <!-- <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" /> -->
 
-<form th:action="@{/jobs/add}" method="post">
-    <!-- ✅ 必须：CSRF 隐藏字段 -->
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-    <label>company:</label>
-    <input type="text" name="company" /><br/>
+        <!-- 成功提示：若后端传纯文本保留原样；若传 key，前端可用 th:text="#{${ok}}" -->
+        <div th:if="${ok}" th:text="${ok}" style="color: green"></div>
 
-    <label>position:</label>
-    <input type="text" name="position" /><br/>
+        <!-- 校验错误（内容通常已是人类可读字符串；如需 i18n，自定义 key 并在后端传 key 列表） -->
+        <div th:if="${#fields.hasErrors('*')}" style="color: red">
+            <p th:each="e : ${#fields.errors('*')}" th:text="${e}">错误</p>
+        </div>
 
-    <label>status:</label>
-    <input type="text" name="status" /><br/>
+        <label for="company" th:text="#{form.company}">公司：</label>
+        <input id="company" type="text" th:field="*{company}" required><br>
 
-    <label>appliedDate</label>
-    <input type="date" name="appliedDate" /><br/>
+        <label for="position" th:text="#{form.position}">职位：</label>
+        <input id="position" type="text" th:field="*{position}" required><br>
 
-    <button type="submit">submit</button>
+        <label for="status" th:text="#{form.status}">状态：</label>
+        <select id="status" th:field="*{status}">
+            <option value="applied"   th:text="#{status.applied}">applied</option>
+            <option value="interview" th:text="#{status.interview}">interview</option>
+            <option value="offer"     th:text="#{status.offer}">offer</option>
+            <option value="rejected"  th:text="#{status.rejected}">rejected</option>
+        </select><br>
+
+        <label for="appliedDate" th:text="#{form.appliedDate}">申请日期：</label>
+        <input id="appliedDate" type="date" th:field="*{appliedDate}"><br>
+
+    <button type="submit" th:text="#{addJob.button.submit}">Submit</button>
 </form>
 
-<a href="/jobs">return jobs</a>
+<a th:href="@{/jobs}" th:text="#{addJob.link.back}">Return to Job List</a>
+
 <script src="/js/http.js" defer></script>
 </body>
 </html>
+

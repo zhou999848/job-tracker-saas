@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,7 +26,9 @@ import java.time.Instant;
 public class JwtFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
-    /** iat 与 DB 时间精度的容差（防止边界时刻误判） */
+    /**
+     * iat 与 DB 时间精度的容差（防止边界时刻误判）
+     */
     private static final Duration IAT_SKEW = Duration.ofSeconds(2);
 
     private final UserRepository userRepository;
@@ -40,7 +43,9 @@ public class JwtFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
-    /** 哪些请求不进 JWT 过滤 */
+    /**
+     * 哪些请求不进 JWT 过滤
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
@@ -66,20 +71,26 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        // 只有当当前没有认证信息时，才尝试基于 JWT 建立认证
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            String token = resolveAccessToken(request);      // ✅ 只解析 Bearer / ACCESS
+            String token = resolveAccessToken(request); // Bearer / Cookie: ACCESS
             if (token != null) {
                 try {
-                    // 1) 过期/非法直接当未登录处理（不抛 401，由后续 EntryPoint/Advice 处理）
-                    if (!jwtUtil.validateAccessToken(token)) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[JWT] access token invalid or expired. uri={}", request.getRequestURI());
-                        }
-                        clearAccessCookie(response, request.isSecure());   // ✅ 清 ACCESS，不动 REFRESH
+                    // 1) 基础校验：过期/非法 → 当未登录处理（不抛401）
+                    // 在 JwtFilter 中，尽早做严格校验
+                    if (!jwtUtil.validateAccessTokenStrict(token)) {
+                        if (log.isDebugEnabled()) log.debug("[JWT] invalid access (expired/signature/iat<=pwdAt)");
+                        clearAccessCookie(response, request.isSecure());
+                        clearRefreshCookie(response, request.isSecure()); // ← 同时清除
+                        invalidateSessionIfPresent(request);
+                        SecurityContextHolder.clearContext();
                         chain.doFilter(request, response);
                         return;
                     }
+                  //  if (!jwtUtil.validateAccessTokenStrict(token)) {
+                    //    clearAccessCookie(response, request.isSecure());
+                      //  chain.doFilter(request, response);
+                        //return;
+                    //}
 
                     // 2) 解析用户名 + iat
                     String username = jwtUtil.getUsername(token);
@@ -102,8 +113,13 @@ public class JwtFilter extends OncePerRequestFilter {
                             log.debug("[JWT] reject due to password change. uri={}, iat={}, pwdChangedAt={}",
                                     request.getRequestURI(), tokenIat, pwdAt);
                         }
+                        // ✅ 关键改动：密码已变更 → 彻底清理，防止静默刷新再次登录
                         clearAccessCookie(response, request.isSecure());
-                        chain.doFilter(request, response);
+                        clearRefreshCookie(response, request.isSecure());        // ← 新增：同时清除 REFRESH
+                        invalidateSessionIfPresent(request);                    // ← 新增：失效 HttpSession
+                        SecurityContextHolder.clearContext();                   // ← 新增：清空上下文
+
+                        chain.doFilter(request, response); // 后续由 EntryPoint/Controller 决定 401 或 302
                         return;
                     }
 
@@ -120,7 +136,6 @@ public class JwtFilter extends OncePerRequestFilter {
                     }
 
                 } catch (io.jsonwebtoken.JwtException e) {
-                    // 签名不匹配、格式错误等
                     log.warn("[JWT] invalid token: {}", e.getMessage());
                     clearAccessCookie(response, request.isSecure());
                 } catch (Exception e) {
@@ -129,11 +144,37 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
 
-        // 放行
         chain.doFilter(request, response);
     }
 
-    /** 只解析访问令牌：Authorization: Bearer 优先，其次 Cookie: ACCESS */
+    /**
+     * 只清 ACCESS（保留自动刷新场景）
+     */
+    private void clearAccessCookie(HttpServletResponse response, boolean secure) {
+        StringBuilder sb = new StringBuilder("ACCESS=; Path=/; Max-Age=0; HttpOnly; ");
+        if (secure) sb.append("Secure; SameSite=Lax");
+        else sb.append("SameSite=Lax");
+        response.addHeader("Set-Cookie", sb.toString());
+    }
+
+    /**
+     * 🔥 新增：清 REFRESH（用于“密码已变更”场景，一次性踢下线）
+     */
+    private void clearRefreshCookie(HttpServletResponse response, boolean secure) {
+        StringBuilder sb = new StringBuilder("REFRESH=; Path=/; Max-Age=0; HttpOnly; ");
+        if (secure) sb.append("Secure; SameSite=Lax");
+        else sb.append("SameSite=Lax");
+        response.addHeader("Set-Cookie", sb.toString());
+    }
+
+    /**
+     * 🔥 新增：失效 Session（若存在）
+     */
+    private void invalidateSessionIfPresent(HttpServletRequest request) {
+        HttpSession s = request.getSession(false);
+        if (s != null) s.invalidate();
+    }
+    /** 从 Authorization: Bearer 或 Cookie: ACCESS 解析访问令牌 */
     private String resolveAccessToken(HttpServletRequest request) {
         // 1) Authorization: Bearer <token>
         String header = request.getHeader("Authorization");
@@ -144,7 +185,6 @@ public class JwtFilter extends OncePerRequestFilter {
             }
             if (!t.isEmpty()) return t;
         }
-
         // 2) Cookie: ACCESS
         return readCookie(request, "ACCESS");
     }
@@ -160,24 +200,11 @@ public class JwtFilter extends OncePerRequestFilter {
                     if (v.length() >= 2 && v.startsWith("\"") && v.endsWith("\"")) {
                         v = v.substring(1, v.length() - 1);
                     }
-                    return v;
+                    return v.isEmpty() ? null : v;
                 }
             }
         }
         return null;
     }
 
-    /** 只清除“访问令牌”Cookie（ACCESS）；不清除 REFRESH（留给前端去 /api/auth/refresh 自动续签） */
-    private void clearAccessCookie(HttpServletResponse response, boolean secure) {
-        // 注意 SameSite：如果你的站点需要跨站调用刷新，按需改为 "None; Secure"
-        StringBuilder sb = new StringBuilder("ACCESS=; Path=/; Max-Age=0; HttpOnly; ");
-        if (secure) {
-            sb.append("Secure; SameSite=Lax"); // HTTPS 场景
-        } else {
-            sb.append("SameSite=Lax");         // 本地 HTTP 调试
-        }
-        response.addHeader("Set-Cookie", sb.toString());
-    }
 }
-
-

@@ -12,23 +12,22 @@ import java.util.UUID;
 public class JobApplicationDto {
 
     @Id
-    private UUID id = UUID.randomUUID();
+    private UUID id= UUID.randomUUID();
 
-   @NotBlank(message="companyisnotblank")
+   @NotBlank(message="company cannot be blank")
     private String company;
-   @NotBlank(message="positionisnotblank")
+   @NotBlank(message="position cannot be blank")
    @Size(max=50,message="number<=50")
     private String position;
-   @NotBlank(message="statusisnotblank")
+   @NotBlank(message="status cannot be blank")
     private String status;
-   @NotNull(message="appliedDateinotnull")
+   @NotNull(message="appliedDate cannot be null")
     private LocalDate appliedDate;
 
     // Getter & Setter 省略可用 Lombok（如 @Getter/@Setter）
-    public UUID getId() {
+   public UUID getId() {
         return id;
     }
-
     public void setId(UUID id) {
         this.id = id;
     }

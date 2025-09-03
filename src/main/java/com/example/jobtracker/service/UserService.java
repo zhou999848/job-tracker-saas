@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,5 +69,8 @@ private final UserRepository repo;
 
         int n = sessionKickoutService.kickout(username);
         logger.info("Kicked {} sessions for user {}", n, username);
+    }
+    public Optional<User> findByUsername(String username) {
+        return repo.findByUsername(username);
     }
 }

@@ -1,37 +1,155 @@
-<!-- profile.html (主页面) -->
-<!-- Compare this snippet from src/main/resources/templates/profile.html: -->
-<!-- Compare this snippet from src/main/resources/templates/profile.html: -->
 <!DOCTYPE html>
-    <html xmlns:th="http://www.thymeleaf.org"  xmlns:sec="https://www.thymeleaf.org/extras/spring-security">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="https://www.thymeleaf.org/extras/spring-security"
+      th:lang="${#locale}">
 <head>
-    <meta name="_csrf" th:content="${_csrf.token}" />
-    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    <meta charset="UTF-8">
+    <title th:text="#{profile.pageTitle}">Profile</title>
 </head>
-<!-- login.html 中（大概率第 9 行） -->
-<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+<body>
+<!-- 多语言切换 -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
+<!-- 返回按钮 -->
+<p>
+    <a th:href="@{/jobs}" th:text="#{return.jobList}">返回职位列表</a>
+</p>
 
+<!-- 基本资料 -->
+<h2 th:text="#{profile.title}">プロフィール</h2>
 
+<!-- 不再用 th:action 提交到 MVC；让 JS 接管 -->
+<form id="profileForm">
+    <label for="displayName" th:text="#{profile.nickname}">ニックネーム</label>
+    <input id="displayName" type="text" name="displayName"
+           th:value="${me != null ? me.displayName : ''}"
+           required maxlength="50"/><br>
 
-<h2>个人资料</h2>
-<form th:action="@{/profile/update}" method="post">
-    <sec:csrfInput/>
-    <label>昵称</label>
-    <input type="text" name="displayName" th:value="${me.displayName}" required maxlength="50"/>
-    <label>邮箱</label>
-    <input type="email" name="email" th:value="${me.email}" maxlength="120"/>
-    <button type="submit">保存</button>
+    <label for="email" th:text="#{profile.email}">メールアドレス</label>
+    <input id="email" type="email" name="email"
+           th:value="${me != null ? me.email : ''}"
+           maxlength="120"/><br>
+
+    <button id="btnSaveProfile" type="submit" th:text="#{profile.save}">保存</button>
 </form>
 
-<h2>修改密码</h2>
-<form th:action="@{/profile/change-password}" method="post">
-    <sec:csrfInput/>
-    <label>当前密码</label>
-    <input type="password" name="currentPassword" required/>
-    <label>新密码（至少8位，含大小写和数字）</label>
-    <input type="password" name="newPassword" required/>
-    <button type="submit">修改密码</button>
+<!-- 修改密码 -->
+<h2 th:text="#{profile.password.title}">パスワード変更</h2>
+
+<form id="pwdForm">
+    <label for="currentPassword" th:text="#{profile.password.current}">現在のパスワード</label>
+    <input id="currentPassword" type="password" name="currentPassword" required/><br>
+
+    <label for="newPassword" th:text="#{profile.password.new}">新しいパスワード</label>
+    <input id="newPassword" type="password" name="newPassword" required/><br>
+
+    <label th:text="#{profile.password.rule}">（8文字以上、英大文字・小文字・数字を含む）</label><br>
+
+    <button id="btnChangePwd" type="submit" th:text="#{profile.password.change}">パスワードを変更</button>
 </form>
-<script src="/js/http.js" defer></script>
+
+<!-- 统一的反馈区（成功 / 错误） -->
+<div id="msgOk"  style="color: green; margin: 8px 0; display:none;"></div>
+<div id="msgErr" style="color: red;   margin: 8px 0; display:none;"></div>
+
+<script>
+    /**
+     * 如果你项目里已经有全局 apiFetch（会在 401 时自动去 /api/auth/refresh 刷新并重试一次），
+     * 直接用你现有的即可；如果没有，用这个最小实现。
+     */
+    async function apiFetch(url, options = {}, retry = true) {
+        const resp = await fetch(url, {
+            credentials: 'include', // 关键：带上 ACCESS / REFRESH Cookie
+            headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+            ...options
+        });
+        if (resp.status === 401 && retry) {
+            // 去刷新 ACCESS
+            const r = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+            if (r.ok) {
+                // 刷新成功，重试原请求（只重试一次）
+                return apiFetch(url, options, false);
+            }
+        }
+        return resp;
+    }
+
+    function showOk(msg) {
+        const ok = document.getElementById('msgOk');
+        const err = document.getElementById('msgErr');
+        ok.textContent = msg || '';
+        ok.style.display = msg ? 'block' : 'none';
+        err.style.display = 'none';
+    }
+    function showErr(msg) {
+        const ok = document.getElementById('msgOk');
+        const err = document.getElementById('msgErr');
+        err.textContent = msg || '';
+        err.style.display = msg ? 'block' : 'none';
+        ok.style.display = 'none';
+    }
+
+    // 基本资料 — JS 提交到 /api/profile/update
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        showOk(''); showErr('');
+        const btn = document.getElementById('btnSaveProfile');
+        btn.disabled = true;
+
+        const payload = {
+            displayName: document.getElementById('displayName').value?.trim(),
+            email: document.getElementById('email').value?.trim() || null
+        };
+
+        try {
+            const resp = await apiFetch('/api/profile/update', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok) {
+                showOk(data.message || 'プロフィールが更新されました');
+            } else {
+                showErr(data.error || '不正な入力です');
+            }
+        } catch (err) {
+            showErr('ネットワークエラーが発生しました');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // 修改密码 — JS 提交到 /api/profile/change-password
+    document.getElementById('pwdForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        showOk(''); showErr('');
+        const btn = document.getElementById('btnChangePwd');
+        btn.disabled = true;
+
+        const payload = {
+            currentPassword: document.getElementById('currentPassword').value,
+            newPassword: document.getElementById('newPassword').value
+        };
+
+        try {
+            const resp = await apiFetch('/api/profile/change-password', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok) {
+                // 后端会清掉认证 Cookie；前端提示并跳到登录页
+                showOk(data.message || 'パスワードが変更されました。再度ログインしてください');
+                setTimeout(() => { window.location.href = '/login'; }, 800);
+            } else {
+                showErr(data.error || '現在のパスワードが正しくありません');
+            }
+        } catch (err) {
+            showErr('ネットワークエラーが発生しました');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+</script>
+</body>
 </html>
 

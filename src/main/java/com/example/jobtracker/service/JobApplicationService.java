@@ -30,10 +30,12 @@ public class JobApplicationService {
     private final JobApplicationRepository jobRepository;
     private final UserRepository userRepository;
 
-
     public JobApplicationService(JobApplicationRepository jobRepository, UserRepository userRepository) {
-        this.jobRepository= jobRepository;this.userRepository = userRepository;
+        this.jobRepository = jobRepository;
+        this.userRepository = userRepository;
     }
+
+    // 保存功能
     public void save(JobApplicationDto dto) {
         // ① 获取当前登录的用户名
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -47,6 +49,7 @@ public class JobApplicationService {
         job.setPosition(dto.getPosition());
         job.setStatus(dto.getStatus());
         job.setAppliedDate(dto.getAppliedDate());
+        job.setId(dto.getId());   // ← 改回 id
 
         // ④ 设置所属用户
         job.setUser(user);
@@ -59,6 +62,7 @@ public class JobApplicationService {
         List<JobApplicationDto> dtoList = new ArrayList<>();
         for (JobApplication job : jobRepository.findAll()) {
             JobApplicationDto dto = new JobApplicationDto();
+            dto.setId(job.getId());   // ← 加上 id
             dto.setCompany(job.getCompany());
             dto.setPosition(job.getPosition());
             dto.setStatus(job.getStatus());
@@ -67,17 +71,21 @@ public class JobApplicationService {
         }
         return dtoList;
     }
+
+    // 分页查询功能
     public Page<JobApplicationDto> findAll(int page, int size, String sortBy, String direction) {
-        // ?取当前用?名
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        Sort sort = direction.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Sort sort = direction.equalsIgnoreCase("desc") ?
+                Sort.by(sortBy).descending() :
+                Sort.by(sortBy).ascending();
         PageRequest request = PageRequest.of(page, size, sort);
 
-        // 只??属于?个用?的数据
+        // 只查属于当前用户的数据
         return jobRepository.findByUserUsername(username, request)
                 .map(job -> {
                     JobApplicationDto dto = new JobApplicationDto();
+                    dto.setId(job.getId());   // ← 改回 id
                     dto.setCompany(job.getCompany());
                     dto.setPosition(job.getPosition());
                     dto.setStatus(job.getStatus());
@@ -85,13 +93,16 @@ public class JobApplicationService {
                     return dto;
                 });
     }
+
+//搜索功能
     public Page<JobApplicationDto> searchByCompany(String keyword, int page, int size) {
-        // 创建分页参数（默认不排序）
-        PageRequest request = PageRequest.of(page, size);
-        // 查询并转换为 DTO
-        return jobRepository.findByCompanyContainingIgnoreCase(keyword, request)
+        // Service 里取当前用户名再调用 repo
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        PageRequest req = PageRequest.of(page, size);
+        return jobRepository.findByCompanyContainingIgnoreCaseAndUser_Username(keyword, username, req)
                 .map(job -> {
                     JobApplicationDto dto = new JobApplicationDto();
+                    dto.setId(job.getId());   // ← 改回 id
                     dto.setCompany(job.getCompany());
                     dto.setPosition(job.getPosition());
                     dto.setStatus(job.getStatus());
@@ -100,14 +111,16 @@ public class JobApplicationService {
                 });
     }
 
-    public void save(JobApplication job) {//对应uploadWithInfo的最后一行的!!!!
-        jobRepository.save(job); // 这里的 repository 是 JPA 注入的
+    public void save(JobApplication job) { // 对应 uploadWithInfo 的最后一行
+        jobRepository.save(job);
     }
 
-    public void checkOwner(UUID id) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();//获取当前登录用户
 
-        JobApplication job=jobRepository.findById(id)//加载note，并检查是不是当前用户的
+    // 删除功能
+    public void checkOwner(UUID id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        JobApplication job = jobRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (!job.getUser().getUsername().equals(username)) {
@@ -118,10 +131,36 @@ public class JobApplicationService {
         biz.info("JOB_DELETE user={} jobId={}", username, id);
     }
 
-    public JobApplication findById(UUID id) {//4-5対応controller。findById
+    public JobApplication findById(UUID id) {
         return jobRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该职位"));
     }
 
+    // 编辑功能
+    public JobApplication getMine(UUID id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        JobApplication job = jobRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        if (!job.getUser().getUsername().equals(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+        return job;
+    }
+
+    public void updateJob(UUID id, JobApplicationDto req) {
+        JobApplication job = getMine(id); // 已做 owner 校验
+        job.setCompany(req.getCompany());
+        job.setPosition(req.getPosition());
+        job.setStatus(req.getStatus());
+        job.setAppliedDate(req.getAppliedDate());
+
+        jobRepository.save(job);
+    }
 }
+
+
+
+
 

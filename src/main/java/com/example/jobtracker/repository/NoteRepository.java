@@ -13,7 +13,8 @@ import org.springframework.data.domain.Pageable;
 
 public interface NoteRepository extends JpaRepository<Note, UUID> {
     @EntityGraph(attributePaths = "filePaths")
-    Page<Note>findByUserUsernameAndJobId (String username, UUID jobId, Pageable pageable); // ★ 加上 Pageable
+    Page<Note> findByUserUsernameAndJobId(String username, UUID jobId, Pageable pageable); // ★ 加上 Pageable
+
     Optional<Note> findByFilePathsContains(String filePath);
 }
 

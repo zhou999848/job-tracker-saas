@@ -17,6 +17,10 @@ public class NoteDto {
     @Column(name = "path")  // 必须与数据库表名一致
     private List<String> filePaths= new ArrayList<>(); // 附件路径
 
+    private List<String> removeFiles; // 勾选要删除的旧文件（用原路径
+
+
+
    public UUID getId() {
         return id;
     }
@@ -53,5 +57,11 @@ public class NoteDto {
 
     public void setFilePaths(List<String> filePaths) {
         this.filePaths = filePaths;
+    }
+    public List<String> getRemoveFiles() {
+        return removeFiles;
+    }
+    public void setRemoveFiles(List<String> removeFiles) {
+        this.removeFiles = removeFiles;
     }
 }

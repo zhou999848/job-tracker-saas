@@ -28,13 +28,8 @@ public class JobApplication {
 
     public void setFilePath(String filePath) {this.filePath=filePath;}
     public String getFilePath() {return this.filePath;}
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
+    public UUID getId() {return id;}
+    public void setId(UUID id) {this.id = id;}
 
     public String getCompany() {
         return company;

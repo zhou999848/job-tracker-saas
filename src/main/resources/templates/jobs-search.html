@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale}">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="#{page.search.title}">职位搜索</title>
+</head>
+<body>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{page.search.heading}">职位搜索</h2>
+
+<form th:action="@{/jobs/search}" method="post" aria-label="search form">
+    <input type="text" name="keyword" th:value="${keyword}"
+           th:placeholder="#{search.placeholder}" placeholder="公司关键字" />
+    <input type="hidden" name="page" th:value="${page}" />
+    <input type="hidden" name="size" th:value="${size}" />
+    <button type="submit" th:text="#{search.button}">搜索</button>
+</form>
+
+<!-- 没有结果 -->
+<div th:if="${result != null and #lists.isEmpty(result.content)}">
+    <p>
+        <span th:text="#{search.empty}">没有找到该职位</span>
+        <a th:href="@{/jobs/add}" th:text="#{jobs.addNew}">,添加该职位</a>
+    </p>
+    <a th:href="@{/jobs}" th:text="#{link.backJobs}">返回职位列表</a>
+</div>
+
+<!-- 有结果 -->
+<div th:if="${result != null and !#lists.isEmpty(result.content)}">
+    <h3 th:text="#{search.results}">搜索结果</h3>
+    <table border="1">
+        <thead>
+        <tr>
+            <th th:text="#{table.company}">公司</th>
+            <th th:text="#{table.position}">职位</th>
+            <th th:text="#{table.status}">状态</th>
+            <th th:text="#{table.appliedDate}">申请日期</th>
+            <th th:text="#{table.actions}">操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="job : ${result.content}">
+            <td th:text="${job.company}"></td>
+            <td th:text="${job.position}"></td>
+            <td th:text="${job.status}"></td>
+            <td th:text="${job.appliedDate}"></td>
+            <td>
+                <a th:href="@{/jobs/edit/{id}(id=${job.id})}" th:text="#{action.edit}">编辑</a>
+                |
+                <a th:href="@{/jobs/{id}/notes(id=${job.id})}" th:text="#{action.viewNotes}">查看笔记</a>
+                |
+                <button type="button" class="btn-delete" th:attr="data-id=${job.id}" th:text="#{action.delete}">删除</button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a th:href="@{/jobs}" th:text="#{link.backJobs}">返回职位列表</a>
+
+    <!-- 分页（POST 保留条件） -->
+    <div style="margin-top:10px;">
+        <form th:action="@{/jobs/search}" method="post" style="display:inline">
+            <input type="hidden" name="keyword" th:value="${keyword}" />
+            <input type="hidden" name="page" th:value="${result.number - 1}" />
+            <input type="hidden" name="size" th:value="${size}" />
+            <button type="submit" th:text="#{pagination.prev}" th:disabled="${result.first}">上一页</button>
+        </form>
+
+        <span style="margin:0 8px;">
+      <span th:text="#{pagination.pageShort}">第</span>
+      <span th:text="${result.number + 1}">1</span>
+      <span>/</span>
+      <span th:text="#{pagination.totalShort}">共</span>
+      <span th:text="${result.totalPages}">1</span>
+      <span th:text="#{pagination.pages}">页</span>
+    </span>
+
+        <form th:action="@{/jobs/search}" method="post" style="display:inline">
+            <input type="hidden" name="keyword" th:value="${keyword}" />
+            <input type="hidden" name="page" th:value="${result.number + 1}" />
+            <input type="hidden" name="size" th:value="${size}" />
+            <button type="submit" th:text="#{pagination.next}" th:disabled="${result.last}">下一页</button>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+
+<!-- JS 文案国际化 -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const I18N = {
+        notFoundId: /*[[#{js.notFoundId}]]*/ '找不到该职位ID',
+        confirmDelete: /*[[#{js.confirmDelete}]]*/ '确定要删除这个职位吗？',
+        unauthorized: /*[[#{js.unauthorized}]]*/ '未登录或令牌失效，正在跳转到登录页…',
+        forbidden: /*[[#{js.forbidden}]]*/ '无权限（403）',
+        deleteFail: /*[[#{js.deleteFail}]]*/ '删除失败',
+        deleteOk: /*[[#{js.deleteOk}]]*/ '删除成功',
+        netOrScriptErr: /*[[#{js.netOrScriptErr}]]*/ '网络/脚本错误'
+    };
+    /*]]>*/
+</script>
+
+<script>
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-delete');
+        if (!btn) return;
+
+        const jobId = btn.dataset.id;
+        if (!jobId) { alert(I18N.n

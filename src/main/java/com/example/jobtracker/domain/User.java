@@ -1,8 +1,5 @@
 package com.example.jobtracker.domain;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -12,7 +9,7 @@ public class User {
     @Id
     @GeneratedValue
     private UUID id;
-
+    @Column(nullable = false, unique = true, length = 100)
     private String username;   // 登录名
     private String password;   // 加密后的密码
     // ... existing fields

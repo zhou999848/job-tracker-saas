@@ -124,6 +124,7 @@ public class JobApplicationController {
      */
     @GetMapping("/search")
     public Page<JobApplicationDto> search(@RequestParam String keyword,
+
                                           @RequestParam(defaultValue = "0") int page,
                                           @RequestParam(defaultValue = "5") int size) {
         logger.info("【EN】Searching job with keyword={} / 【中文】搜索职位关键字={} / 【日本語】職務キーワード検索={}", keyword, keyword, keyword);

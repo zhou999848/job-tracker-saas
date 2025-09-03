@@ -1,5 +1,6 @@
 package com.example.jobtracker.web;
 
+import org.springframework.core.io.UrlResource;
 import org.springframework.ui.Model;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.JobApplicationDto;
@@ -22,6 +23,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -140,23 +144,44 @@ public class NoteController {
          * ✅ 下载附件 / 添付ファイルをダウンロード / Download Attachment
          * [GET] /api/notes/download?file=xxx
          */
-    @GetMapping("/download")
-    public ResponseEntity<Resource> downloadFile(@RequestParam("file") String filePath) throws IOException {
-        String username = getCurrentUsername();
-        File file = new File(filePath);
-        if (!file.exists()) {
-            logger.warn("【EN】User={} File not found / 【中文】用户={} 文件不存在 / 【日本語】ユーザー={} ファイルが存在しない: {}", username, username, username, filePath);
-            return ResponseEntity.notFound().build();
+        @GetMapping("/download")
+        public ResponseEntity<Resource> downloadFile(@RequestParam("filename") String filename) throws IOException {
+            String username = getCurrentUsername();
+
+            // 基础目录：限制只能下载 /uploads/notes 下的文件
+            Path baseDir = Paths.get(System.getProperty("user.dir"), "uploads", "notes").normalize();
+            Path targetFile = baseDir.resolve(filename).normalize();
+
+            // 安全校验：防止路径穿越（../）
+            if (!targetFile.startsWith(baseDir)) {
+                logger.warn("【EN】User={} Invalid path / 【中文】用户={} 非法路径 / 【日本語】ユーザー={} 不正パス: {}",
+                        username, username, username, filename);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            if (!Files.exists(targetFile)) {
+                logger.warn("【EN】User={} File not found / 【中文】用户={} 文件不存在 / 【日本語】ユーザー={} ファイル不存在: {}",
+                        username, username, username, targetFile);
+                return ResponseEntity.notFound().build();
+            }
+
+            logger.info("【EN】User={} Downloading file={} / 【中文】用户={} 正在下载文件={} / 【日本語】ユーザー={} がファイルをダウンロード: {}",
+                    username, filename, username, filename, username, filename);
+
+            UrlResource resource = new UrlResource(targetFile.toUri());
+
+            String contentType = Files.probeContentType(targetFile);
+            if (contentType == null) {
+                contentType = "application/octet-stream";
+            }
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .contentLength(Files.size(targetFile))
+                    .body(resource);
         }
 
-        logger.info("【EN】User={} Downloading file / 【中文】用户={} 下载文件 / 【日本語】ユーザー={} がファイルダウンロード: {}", username, username, username, filePath);
-        InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + file.getName())
-                .contentLength(file.length())
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(resource);
-    }
 
     /**
      * ✅ 删除笔记 / メモを削除 / Delete Note

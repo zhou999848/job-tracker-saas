@@ -1,159 +1,157 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="https://www.thymeleaf.org/extras/spring-security"
+      th:lang="${#locale}">
 <head>
-  <meta charset="UTF-8">
-  <title>note</title>
-    <meta name="_csrf" th:content="${_csrf.token}" />
-    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
-
+    <meta charset="UTF-8">
+    <title th:text="#{page.note}">note</title>
 </head>
 <body>
-<!-- login.html 中（大概率第 9 行） -->
-<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+<!-- 多语言切换（保留你的片段引入；去除重复） -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
+<h1 th:text="#{page.note}">note</h1>
 
-
-<h1>note</h1>
-
-<!-- 如果没有笔记 -->
+<!-- 没有笔记 -->
 <div th:if="${#lists.isEmpty(notes)}">
-  <p>没有找到任何笔记 (No notes found)</p>
+    <p th:text="#{note.empty}">没有找到任何笔记</p>
+    <a th:href="@{/uploadMulti(jobId=${jobId})}" th:text="#{note.add}">添加笔记</a>
 </div>
 
-<!-- 如果有笔记 -->
+<!-- 有笔记 -->
 <div th:if="${not #lists.isEmpty(notes)}">
-  <table border="1">
-    <thead>
-    <tr>
-      <th>序号</th>
-      <th>时间</th>
-      <th>笔记内容</th>
-        <th>附件下载</th> <!-- 新增列 -->
-        <th>操作</th>
-        <th>note.id</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="note, stat : ${notes}">
-      <td th:text="${pageSize * currentPage + stat.index + 1}">1</td>
-      <td th:text="${note.createdAt}">时间</td>
-      <td th:text="${note.content}">笔记内容</td>
-        <td>
-            <!-- 有附件就列出 -->
-            <div th:if="${note.filePaths != null and !#lists.isEmpty(note.filePaths)}">
-                <ul>
-                    <li th:each="path : ${note.filePaths}">
-                        <a th:href="@{/api/notes/download(file=${path})}"
-                           th:text="${#strings.substring(path, T(java.lang.Math).max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1)}"
-                           target="_blank">附件</a>
+    <a th:href="@{/uploadMulti(jobId=${jobId})}" th:text="#{note.addNew}">添加新的笔记</a>
+    <table border="1">
+        <thead>
+        <tr>
+            <th th:text="#{note.index}">序号</th>
+            <th th:text="#{note.time}">时间</th>
+            <th th:text="#{note.content}">笔记内容</th>
+            <th th:text="#{note.attachments}">附件下载</th>
+            <th th:text="#{note.actions}">操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="note, stat : ${notes}">
+            <td th:text="${pageSize * currentPage + stat.index + 1}">1</td>
+            <td th:text="${note.createdAt}">时间</td>
+            <td th:text="${note.content}">笔记内容</td>
 
-                    </li>
-                </ul>
-            </div>
-            <!-- 没附件就显示“无” -->
-            <span th:if="${note.filePaths == null or #lists.isEmpty(note.filePaths)}">无</span>
-        </td>
+            <td>
+                <div th:if="${note.filePaths != null and !#lists.isEmpty(note.filePaths)}">
+                    <ul>
+                        <li th:each="p : ${note.filePaths}">
+                          <span th:with="
+                            slash=${p != null ? p.lastIndexOf('/') : -1},
+                            bslash=${p != null ? p.lastIndexOf('\\') : -1},
+                            idx=${slash > bslash ? slash : bslash},
+                            name=${(idx >= 0) ? #strings.substring(p, idx + 1) : p}">
+                            <a th:href="@{/api/notes/download(filename=${name})}"
+                               th:text="${name}"
+                               th:attr="aria-label=#{note.attachment}"
+                               target="_blank">附件</a>
+                          </span>
+                        </li>
+                    </ul>
+                </div>
+                <span th:if="${note.filePaths == null or #lists.isEmpty(note.filePaths)}"
+                      th:text="#{note.noAttachment}">无</span>
+            </td>
 
-        <td> <button type="button" class="btn-delete" th:attr="data-id=${note.id}">删除</button>
-        </td>
-        <td th:text="${note.id}">测试ID</td>
+            <td>
+                <a th:href="@{/notes/edit/{id}(id=${note.id},jobId=${jobId})}" th:text="#{action.edit}">编辑</a>
+                <span> | </span>
+                <button type="button" class="btn-delete" th:attr="data-id=${note.id}"
+                        th:text="#{note.delete}">删除note</button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
 
-    </tr>
-    </tbody>
-  </table>
+    <!-- 分页 -->
+    <div style="margin-top: 10px;">
+        <span th:if="${currentPage > 0}">
+            <a th:href="@{/jobs/{jobId}/notes(jobId=${jobId}, page=${currentPage - 1})}"
+               th:text="#{pagination.prev}">上一页</a>
+        </span>
 
-  <!-- 分页按钮 -->
-  <div style="margin-top: 10px;">
-    <span th:if="${currentPage > 0}">
-      <a th:href="@{/jobs/{jobId}/notes(jobId=${jobId}, page=${currentPage - 1})}">上一页</a>
-    </span>
+        <span>
+          <span th:text="#{pagination.page}">第</span>
+          <span th:text="${currentPage + 1}">1</span>
+          <span th:text="#{pagination.pageSuffix}">页</span>
+        </span>
 
-    <span>第 <span th:text="${currentPage + 1}">1</span> 页</span>
-    <span>共 <span th:text="${totalPages}">1</span> 页</span>
+        <span>
+          <span th:text="#{pagination.total}">共</span>
+          <span th:text="${totalPages}">1</span>
+          <span th:text="#{pagination.pageSuffix}">页</span>
+        </span>
 
-    <span th:if="${currentPage + 1 < totalPages}">
-      <a th:href="@{/jobs/{jobId}/notes(jobId=${jobId}, page=${currentPage + 1})}">下一页</a>
-    </span>
-  </div>
+        <span th:if="${currentPage + 1 < totalPages}">
+            <a th:href="@{/jobs/{jobId}/notes(jobId=${jobId}, page=${currentPage + 1})}"
+               th:text="#{pagination.next}">下一页</a>
+        </span>
+    </div>
 </div>
 
 <!-- 返回按钮 -->
 <p>
-  <a th:href="@{/jobs}">返回职位列表 (return jobList)</a>
+    <a th:href="@{/jobs}" th:text="#{return.jobList}">返回职位列表</a>
 </p>
+
+<!-- JS 文案国际化 -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const I18N = {
+        noNoteId: /*[[#{alert.noNoteId}]]*/ 'Note ID not found',
+        confirmDeleteNote: /*[[#{alert.confirmDeleteNote}]]*/ 'Are you sure you want to delete this note?',
+        deleteSuccess: /*[[#{alert.deleteSuccess}]]*/ 'Deleted successfully',
+        deleteForbidden: /*[[#{alert.deleteForbidden}]]*/ 'No permission to delete (or CSRF failed)',
+        deleteFailed: /*[[#{alert.deleteFailed}]]*/ 'Delete failed',
+        networkError: /*[[#{alert.networkError}]]*/ 'Network/Script error'
+    };
+    /*]]>*/
+</script>
+
 <script>
-    // ---- 可选：页面加载时先取一次 CSRF 元信息 ----
-    let CSRF_TOKEN = null;
-    let CSRF_HEADER = null;
-
-    document.addEventListener('DOMContentLoaded', () => {
-        CSRF_TOKEN  = document.querySelector('meta[name="_csrf"]')?.content || null;
-        CSRF_HEADER = document.querySelector('meta[name="_csrf_header"]')?.content || null;
-        console.log('[Init] delete buttons =', document.querySelectorAll('.btn-delete').length);
-    });
-
-    // ---- 事件委托：捕获 .btn-delete 的点击 ----
     document.addEventListener('click', async (e) => {
         const btn = e.target.closest('.btn-delete');
         if (!btn) return;
 
         const noteId = btn.dataset.id;
-        console.log('[NoteDelete] click detected, noteId =', noteId);
-
-        if (!noteId) {
-            alert('找不到笔记ID');
-            return;
-        }
-        if (!confirm('确认删除笔记？')) return;
+        if (!noteId) { alert(I18N.noNoteId); return; }
+        if (!confirm(I18N.confirmDeleteNote)) return;
 
         const url = `/api/notes/${encodeURIComponent(noteId)}`;
-        console.log('[NoteDelete] sending DELETE', url);
-
-        // 组装请求头（若存在 CSRF 元信息则附带）
         const headers = {};
-        if (CSRF_TOKEN && CSRF_HEADER) {
+        if (typeof CSRF_TOKEN !== "undefined" && typeof CSRF_HEADER !== "undefined") {
             headers[CSRF_HEADER] = CSRF_TOKEN;
         }
 
         try {
-            const res = await fetch(url, {
-                method: 'DELETE',
-                headers,
-                // 显式带上同域 Cookie（JWT 等）
-                credentials: 'same-origin'
-            });
-
-            const text = await res.text().catch(() => '');
-            console.log('[NoteDelete] response', res.status, text);
+            const res = await fetch(url, { method: 'DELETE', headers, credentials: 'same-origin' });
 
             if (res.status === 204 || res.status === 200) {
-                // 成功：移除该行
                 btn.closest('tr')?.remove();
-               alert('✅ 删除成功');// 成功提示
+                alert('✅ ' + I18N.deleteSuccess);
                 return;
             }
-
             if (res.status === 401) {
-                // 未登录：跳登录并带回跳
                 const target = location.pathname + location.search;
                 location.href = '/login?redirect=' + encodeURIComponent(target);
                 return;
             }
-
             if (res.status === 403) {
-                // 无权限或 CSRF 失败
-                alert('无权限删除（或 CSRF 校验失败）');
+                alert(I18N.deleteForbidden);
                 return;
             }
-
-            // 其他错误
-            alert(`❌ 删除失败：HTTP ${res.status}\n${text}`);
+            alert(`❌ ${I18N.deleteFailed}: HTTP ${res.status}`);
         } catch (err) {
-            console.error(err);
-            alert(`❌ 网络/脚本错误：${err?.message || err}`);
+            alert(`❌ ${I18N.networkError}: ${err?.message || err}`);
         }
     });
 </script>
+
 <script src="/js/http.js" defer></script>
 </body>
 </html>
+

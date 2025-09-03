@@ -1,127 +1,162 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="https://www.thymeleaf.org/extras/spring-security"
+      th:lang="${#locale}">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="#{page.jobs.title}">职位列表</title>
+</head>
+<body>
+<!-- 多语言切换片段 -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
-    <!DOCTYPE html>
-    <html xmlns:th="http://www.thymeleaf.org"  xmlns:sec="https://www.thymeleaf.org/extras/spring-security">
-    <head>
-        <meta charset="UTF-8" />
-        <title>职位列表</title>
+<!-- 已登录可见 -->
+<div sec:authorize="isAuthenticated()">
+    <span th:text="#{nav.hello}">你好,</span>
+    <b sec:authentication="name">user</b>
+    <form th:action="@{/logout}" method="post" style="display:inline">
+        <button type="submit" th:text="#{nav.logout}">退出</button>
+    </form>
+</div>
 
-        <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}" />
-        <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}" />
-    </head>    <body>
-    <!-- login.html 中（大概率第 9 行） -->
-    <div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+<!-- 未登录可见 -->
+<div sec:authorize="isAnonymous()">
+    <a th:href="@{/login}" th:text="#{nav.login}">请登录</a>
+</div>
 
+<a th:href="@{/profile}" th:text="#{nav.profile}">个人信息管理</a>
 
-    <h2>已申请职位列表</h2>
+<h2 th:text="#{page.jobs.heading}">已申请职位列表</h2>
 
-    <!-- 已登录可见 -->
-    <div sec:authorize="isAuthenticated()">
-        こんにちは, <b sec:authentication="name">user</b>
-        <form th:action="@{/logout}" method="post" style="display:inline">
-            <sec:csrfInput />
-            <!-- Spring Security 自动注入 _csrf 隐藏字段 -->
-            <button type="submit">退出</button>
-        </form>
-    </div>
+<!-- 搜索框 -->
+<form th:action="@{/jobs/search}" method="post">
+    <input type="text" name="keyword" th:value="${keyword}" th:placeholder="#{search.placeholder}" placeholder="公司关键字"/>
+    <input type="hidden" name="page" value="0"/>
+    <input type="hidden" name="size" value="5"/>
+    <button type="submit" th:text="#{search.button}">搜索</button>
+</form>
 
-    <!-- 未登录可见 -->
-    <div sec:authorize="isAnonymous()">
-        <a th:href="@{/login}">请登录</a>
-    </div>
+<!-- 无数据提示 -->
+<p th:if="${#lists.isEmpty(jobs)}" th:text="#{jobs.empty}">没有找到任何职位</p>
 
-    <p th:if="${#lists.isEmpty(jobs)}">没有找到任何职位 (No jobs found)</p>
+<!-- 新增职位 -->
+<a th:href="@{/jobs/add}" th:text="#{jobs.addNew}">添加新的职位</a>
 
-    <table border="1">
-        <thead>
-        <tr>
-            <th>序号</th>
-            <th>公司</th>
-            <th>职位</th>
-            <th>状态</th>
-            <th>申请日期</th>
-            <th>操作</th>
-            <th>id</th>
-        </tr>
-        </thead>
+<table border="1">
+    <thead>
+    <tr>
+        <th th:text="#{table.seq}">序号</th>
+        <th th:text="#{table.company}">公司</th>
+        <th th:text="#{table.position}">职位</th>
+        <th th:text="#{table.status}">状态</th>
+        <th th:text="#{table.appliedDate}">申请日期</th>
+        <th th:text="#{table.actions}">操作</th>
+    </tr>
+    </thead>
 
-        <tbody>
-        <tr th:each="job, stat : ${jobs}" th:attr="data-row-id=${job.id}">
-            <td th:text="${pageSize * currentPage + stat.index + 1}">序号</td>
-            <td th:text="${job.company}">公司</td>
-            <td th:text="${job.position}">职位</td>
-            <td th:text="${job.status}">状态</td>
-            <td th:text="${job.appliedDate}">申请日期</td>
-            <td>
-                <a th:href="@{/jobs/edit/{id}(id=${job.id})}">编辑</a>
-                <a th:href="@{/jobs/{id}/notes(id=${job.id})}">查看笔记</a>
-                |
-                <button type="button" class="btn-delete" th:attr="data-id=${job.id}">?除</button>
-            </td>
-            <td th:text="${job.id}">测试ID</td>
-        </tr>
-        </tbody>
-    </table>
+    <tbody>
+    <tr th:each="job, stat : ${jobs}" th:attr="data-row-id=${job.id}">
+        <td th:text="${pageSize * currentPage + stat.index + 1}">序号</td>
+        <td th:text="${job.company}">公司</td>
+        <td th:text="${job.position}">职位</td>
+        <td th:text="${job.status}">状态</td>
+        <td th:text="${job.appliedDate}">申请日期</td>
+        <td>
+            <a th:href="@{/jobs/edit/{id}(id=${job.id})}" th:text="#{action.edit}">编辑</a>
+            |
+            <a th:href="@{/jobs/{id}/notes(id=${job.id})}" th:text="#{action.viewNotes}">查看笔记</a>
+            |
+            <button type="button" class="btn-delete" th:attr="data-id=${job.id}" th:text="#{action.delete}">删除</button>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- 分页 -->
 <div>
   <span th:if="${currentPage > 0}">
-    <a th:href="@{/jobs(page=${currentPage - 1})}">lastpage</a>
+    <a th:href="@{/jobs(page=${currentPage - 1})}" th:text="#{pagination.prev}">上一页</a>
   </span>
 
-    <span>di<span th:text="${currentPage + 1}">1</span> page</span>
+    <span>
+      <span th:text="#{pagination.page}">第</span>
+      <span th:text="${currentPage + 1}">1</span>
+      <span th:text="#{pagination.pageSuffix}">页</span>
+  </span>
+
+    <span>
+      <span th:text="#{pagination.total}">共</span>
+      <span th:text="${totalPages}">1</span>
+      <span th:text="#{pagination.pageSuffix}">页</span>
+  </span>
 
     <span th:if="${currentPage + 1 < totalPages}">
-    <a th:href="@{/jobs(page=${currentPage + 1})}">nextpage</a>
+    <a th:href="@{/jobs(page=${currentPage + 1})}" th:text="#{pagination.next}">下一页</a>
   </span>
 </div>
+
+<script src="/js/api.js"></script>
+
+<!-- 把 JS 提示文本做成可国际化 -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const I18N = {
+        notFoundId: /*[[#{js.notFoundId}]]*/ '找不到该职位ID',
+        confirmDelete: /*[[#{js.confirmDelete}]]*/ '确定要删除这个职位吗？',
+        unauthorized: /*[[#{js.unauthorized}]]*/ '未登录或令牌失效，正在跳转到登录页…',
+        forbidden: /*[[#{js.forbidden}]]*/ '无权限（403）',
+        deleteFail: /*[[#{js.deleteFail}]]*/ '删除失败',
+        deleteOk: /*[[#{js.deleteOk}]]*/ '删除成功',
+        netOrScriptErr: /*[[#{js.netOrScriptErr}]]*/ '网络/脚本错误'
+    };
+    /*]]>*/
+</script>
+
 <script>
-    // 事件委托：整个文档捕获点击，只处理 .btn-delete
     document.addEventListener('click', async (e) => {
         const btn = e.target.closest('.btn-delete');
         if (!btn) return;
 
         const jobId = btn.dataset.id;
-        console.log('[Delete] click detected, jobId=', jobId);
-
         if (!jobId) {
-            alert('找不到该职位ID');
+            alert(I18N.notFoundId);
             return;
         }
-        if (!confirm('确定要删除这个职位吗？')) return;
+        if (!confirm(I18N.confirmDelete)) return;
 
         const url = `/api/jobs/${jobId}`;
-        console.log('[Delete] sending DELETE', url);
-
         try {
-            const res = await fetch(url, {
-                method: 'DELETE',
-                // 同域请求默认会带 Cookie；显式声明更直观
-                credentials: 'same-origin'
-            });
+            const res = await apiFetch(url, { method: 'DELETE', credentials: 'same-origin' });
 
-            const text = await res.text().catch(() => '');
-
-            console.log('[Delete] response', res.status, text);
-
+            if (res.status === 401) {
+                const back = encodeURIComponent(location.pathname + location.search);
+                alert(I18N.unauthorized);
+                location.href = `/login?redirect=${back}`;
+                return;
+            }
+            if (res.status === 403) {
+                const msg = await res.text().catch(() => '');
+                alert(I18N.forbidden + '\n' + msg);
+                return;
+            }
             if (!res.ok) {
-                alert(`❌ 删除失败：HTTP ${res.status}\n${text}`);
+                const text = await res.text().catch(() => '');
+                alert(`❌ ${I18N.deleteFail}: HTTP ${res.status}\n${text}`);
                 return;
             }
 
-            // 成功：移除行
             btn.closest('tr')?.remove();
-            alert('✅ 删除成功');
+            alert('✅ ' + I18N.deleteOk);
         } catch (err) {
             console.error(err);
-            alert(`❌ 网络/脚本错误：${err?.message || err}`);
+            alert(`❌ ${I18N.netOrScriptErr}: ${err?.message || err}`);
         }
     });
 
-    // 可选：页面加载确认一下按钮是否存在
     document.addEventListener('DOMContentLoaded', () => {
         const count = document.querySelectorAll('.btn-delete').length;
         console.log('[Init] delete buttons =', count);
     });
 </script>
-    <script src="/js/http.js" defer></script>
 
 </body>
 </html>

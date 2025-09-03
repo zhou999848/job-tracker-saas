@@ -29,6 +29,8 @@ public class Note {
     @CollectionTable(name = "note_file_paths", joinColumns = @JoinColumn(name = "note_id"))
     @Column(name = "path")  // 必须与数据库表名一致
     private List<String> filePaths = new ArrayList<>();
+    @Transient
+    private List<String> removeFiles;          // 勾选要删除的旧文件（用原路径
 
     // Getter & Setter
     public UUID getId() {
@@ -68,6 +70,9 @@ public class Note {
     public void setFilePaths(List<String> filePaths) {
         this.filePaths = filePaths;
     }
+
+    public List<String> getRemoveFiles() { return removeFiles; }
+    public void setRemoveFiles(List<String> removeFiles) { this.removeFiles = removeFiles; }
 
     public void setUser(User user) {this.user = user;}
     public User getUser() {return user;}

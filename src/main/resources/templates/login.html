@@ -1,32 +1,49 @@
 <!DOCTYPE html>
-<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="https://www.thymeleaf.org/extras/spring-security"
+      th:lang="${#locale}">
 <head>
     <meta charset="UTF-8">
-    <title>用户登录</title>
-    <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}"/>
-    <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}"/></head>
+    <title th:text="#{page.login.title}">用户登录</title>
+</head>
 <body>
-<!-- login.html 中（大概率第 9 行） -->
-<div th:replace="fragments/lang-switch :: langSwitch(${basePath}, ${redirect})"></div>
+<!-- 多语言切换（保持你的片段引入） -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
+<script src="/js/api.js"></script>
 
+<h2 th:text="#{page.login.heading}">用户登录</h2>
 
-<h2>用户登录</h2>
+<form th:action="@{/login}" method="post" aria-labelledby="login-title">
+    <!-- 如启用 CSRF，解开任意一种 -->
+    <!-- <sec:csrfInput/> -->
+    <!-- <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/> -->
 
-<form th:action="@{/login}" method="post">
+    <label for="username" th:text="#{form.username}">用户名</label>
+    <input id="username" type="text" name="username" required
+           th:placeholder="#{form.username.placeholder}" placeholder="username"/><br/>
 
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+    <label for="password" th:text="#{form.password}">密码</label>
+    <input id="password" type="password" name="password" required
+           th:placeholder="#{form.password.placeholder}" placeholder="password"/><br/>
 
-    <input type="text" name="username" placeholder="用户名">
-    <input type="password" name="password" placeholder="密码">
-    <input type="hidden" name="redirect" th:value="${redirect}">
-    <button type="submit">登录</button>
+    <input type="hidden" name="redirect" th:value="${redirect}"/>
+
+    <button type="submit" th:text="#{form.submit.login}">登录</button>
 </form>
 
+<div class="row" style="margin-top:16px;">
+    <span class="muted" th:text="#{link.noAccount}">还没有账号？</span>
+    <a th:href="@{/register}" th:text="#{link.toRegister}">去注册</a>
+</div>
+
+<!-- 登录失败时的错误消息（后端提供的 error 字符串） -->
+<!--<div th:if="${error}" th:text="${error}" aria-live="polite"></div>-->
+<!-- ✅ 国际化错误消息 -->
+<div th:if="${error}" th:text="#{${error}}" class="error" aria-live="polite"></div>
 
 
-<!-- 错误提示 -->
-<div th:if="${error}" th:text="${error}" ></div>
-<script src="/js/http.js" defer></script>
+
 </body>
 </html>
+

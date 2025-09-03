@@ -1,6 +1,5 @@
 package com.example.jobtracker.service;
 
-import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.NoteDto;
@@ -9,25 +8,20 @@ import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.nio.file.AccessDeniedException;
-import java.time.LocalDateTime;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-
-import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
 
 
 @Service
@@ -36,7 +30,9 @@ public class NoteService {
     private final UserRepository userRepo;
     private final JobApplicationRepository jobRepo;
 
+
     public NoteService(NoteRepository noteRepository, UserRepository userRepository, JobApplicationRepository jobRepo) {
+
         this.noteRepo = noteRepository;
         this.userRepo= userRepository;
         this.jobRepo = jobRepo;
@@ -76,6 +72,7 @@ public class NoteService {
         return noteRepo.findByUserUsernameAndJobId(username, jobId, request)
                 .map(note -> {
                     NoteDto dto = new NoteDto();
+                    dto.setId(note.getId());
                     dto.setJobId(note.getJobId());
                     dto.setContent(note.getContent());
                     dto.setCreatedAt(note.getCreatedAt());
@@ -108,8 +105,6 @@ public class NoteService {
         return noteRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该职位"));
     }
-
-
 
 
 

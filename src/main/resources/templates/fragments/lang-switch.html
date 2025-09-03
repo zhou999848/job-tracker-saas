@@ -1,15 +1,11 @@
-<!-- src/main/resources/templates/fragments/lang-switch.html -->
-<html xmlns:th="http://www.thymeleaf.org">
-<body>
-<div th:fragment="langSwitch(basePath, redirect)">
-    <div th:with="
-        path=${basePath != null ? basePath : '/login'},
-        to=${redirect != null and !#strings.isEmpty(redirect) ? redirect : '/'}">
-        <a th:href="@{${path}(lang='zh', redirect=${to})}">ZH</a>
-        <a th:href="@{${path}(lang='en', redirect=${to})}">EN</a>
-        <a th:href="@{${path}(lang='ja', redirect=${to})}">日本語</a>
+<html xmlns:th="http://www.thymeleaf.org"><body>
+<div th:fragment="langSwitch">
 
-    </div>
+    <!-- 使用 ?param 语法：基于当前URL，仅覆盖/追加 lang，保留其它查询参数 -->
+    <a th:href="@{?lang=ja}">日本語</a>
+    <a th:href="@{?lang=zh}">ZH</a>
+    <a th:href="@{?lang=en}">EN</a>
+
 </div>
-</body>
-</html>
+</body></html>
+
