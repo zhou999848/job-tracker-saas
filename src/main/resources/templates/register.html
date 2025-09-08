@@ -31,11 +31,18 @@
     </div>
 
     <button type="submit" th:text="#{form.submit.register}">注册</button>
+    <!-- 成功提示：若后端传纯文本保留原样；若传 key，前端可用 th:text="#{${ok}}" -->
+    <div th:if="${ok}" th:text="${ok}" style="color: green"></div>
+
+    <!-- 校验错误（内容通常已是人类可读字符串；如需 i18n，自定义 key 并在后端传 key 列表） -->
+    <div th:if="${#fields.hasErrors('*')}" style="color: red">
+        <p th:each="e : ${#fields.errors('*')}" th:text="${e}">错误</p>
+    </div>
 </form>
 
 <a th:href="@{/login}" th:text="#{link.backLogin}">返回登录页面</a>
 
-<!-- 提示信息：如果后端传入的是纯文本，可先这样；若想i18n，把后端传key，前端用 th:text="#{${ok}}" -->
-<div th:if="${ok}" th:text="${ok}" style="color:green;"></div>
+
+
 </body>
 </html>

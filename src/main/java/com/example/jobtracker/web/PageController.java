@@ -108,68 +108,75 @@ private final LoginAttemptService loginAttemptService;
      * ✅ 添加职位申请 / Add a new job application
      * [POST] /jobs/add
      */
+
     @GetMapping("/jobs/add")
     public String showAddJobForm(Model model) {
-        String username = getCurrentUsername();
-        logger.info("[Show Add Job Form] User={} 显示添加职位表单 / Display add job form", username);
-
-        JobApplication job = new JobApplication();
-        JobApplicationDto form = new JobApplicationDto();
-        form.setCompany(job.getCompany());
-        form.setPosition(job.getPosition());
-        form.setStatus(job.getStatus());
-        form.setAppliedDate(job.getAppliedDate());
-        form.setId(job.getId());//←注意这里的id  新增
-
-        model.addAttribute("form", form);
-        model.addAttribute("job", new JobApplicationDto());
-
-
-        return "add-job";  // 指向 templates/addJob.html
+        if (!model.containsAttribute("form")) {
+            model.addAttribute("form", new JobApplicationDto());
+        }
+        return "add-job";
     }
 
     @PostMapping("/jobs/add")
-    public String saveJob(@ModelAttribute JobApplicationDto jobDto) {
-        String username = getCurrentUsername();
-        logger.info("[Save Job] User={} 保存职位 / Saving job: {}", username, jobDto);
-      jobService.save(jobDto); // 调用上面的 addJob 方法
-        return "redirect:/jobs";  // 保存后重定向到职位列表
+    public String saveJob(@ModelAttribute("form") @Valid JobApplicationDto jobDto,
+                          BindingResult br,
+                          RedirectAttributes ra) {
+        if (br.hasErrors()) {
+            // 直接返回 add-job 模板，让 Thymeleaf 读取 BindingResult 渲染错误
+            return "add-job";
+        }
+        jobService.save(jobDto);
+        ra.addFlashAttribute("ok", "职位已创建");
+        return "redirect:/jobs";
     }
+
+
 
     // 打开编辑页
     @GetMapping("/jobs/edit/{id}")
     public String editPage(@PathVariable UUID id, Model model, Principal principal) {
-        String username = principal.getName();
+        // 可选：校验归属
         JobApplication job = jobService.getMine(id);
-       JobApplicationDto form = new JobApplicationDto();
-        form.setCompany(job.getCompany());
-        form.setPosition(job.getPosition());
-        form.setStatus(job.getStatus());
-        form.setAppliedDate(job.getAppliedDate());
-        form.setId(job.getId());//←注意这里的id  新增
 
-        model.addAttribute("form", form);
+        // 如果 model 里没有现成的 form（比如从 POST 校验失败回显过来），则创建一个
+        if (!model.containsAttribute("form")) {
+            JobApplicationDto form = new JobApplicationDto();
+            form.setId(job.getId());                 // 注意携带 id
+            form.setCompany(job.getCompany());
+            form.setPosition(job.getPosition());
+            form.setStatus(job.getStatus());
+            form.setAppliedDate(job.getAppliedDate());
+            model.addAttribute("form", form);
+        }
         model.addAttribute("jobId", id);
-        return "jobs-edit"; // → 对应 Thymeleaf 模板
+        return "jobs-edit";
     }
 
-    // 提交更新（用 POST 最简单）
+    // 提交更新（POST）
     @PostMapping("/jobs/edit/{id}")
     public String doEdit(@PathVariable UUID id,
-                         @Valid JobApplicationDto form,
+                         @ModelAttribute("form") @Valid JobApplicationDto form,
                          BindingResult br,
+                         Model model,
                          RedirectAttributes ra,
                          Principal principal) {
+
+        // 确保 DTO 中的 id 与路径参数一致（防止篡改）
+        form.setId(id);
+
         if (br.hasErrors()) {
-            ra.addFlashAttribute("org.springframework.validation.BindingResult.form", br);
-            ra.addFlashAttribute("form", form);
-            return "redirect:/jobs/edit/" + id;
+            // 直接返回视图，这样 Thymeleaf 才能读取 BindingResult 并展示各字段 message
+            model.addAttribute("jobId", id);
+            return "jobs-edit";
         }
-        String username = principal.getName();
-        jobService.updateJob(id,form);
+
+        // 可选：再次确认权限/归属
+        jobService.updateJob(id, form);
+
         ra.addFlashAttribute("ok", "职位已更新");
-        return "redirect:/jobs"; // 回到列表
+        return "redirect:/jobs";
     }
+
     /** 首次进入搜索页 */
     @GetMapping("/jobs/search")
     public String searchPage(Model model,
@@ -254,6 +261,7 @@ private final LoginAttemptService loginAttemptService;
                               @RequestParam("jobId") UUID jobId,
                               @RequestParam("content") String content
     ) throws IOException {
+
 
         String username = getCurrentUsername();
         List<String> savedPaths = new ArrayList<>();
@@ -433,14 +441,22 @@ private final LoginAttemptService loginAttemptService;
     // 显示注册页面
     @GetMapping("/register")
     public String registerPage(Model model) {
-        model.addAttribute("userDto", new UserDto());
+        if (!model.containsAttribute("userDto")) {
+            model.addAttribute("userDto", new UserDto()); // 你的表单类
+        }
+
         return "register";  // 对应 templates/register.html
     }
 
     // 接收表单提交
     @PostMapping("/register")
-    public String register(@ModelAttribute("userDto") UserDto dto,
+    public String register(@ModelAttribute("userDto") @Valid UserDto dto,
+                           BindingResult br,
                            RedirectAttributes ra) {
+            if (br.hasErrors()) {
+                // 直接返回 add-job 模板，让 Thymeleaf 读取 BindingResult 渲染错误
+                return "register";
+            }
         logger.info("[Register] username={} - 用户注册", dto.getUsername());
         userService.register(dto);
         ra.addFlashAttribute("ok", "注册成功！");
