@@ -51,7 +51,7 @@ public class UserController {
     public String register(@RequestBody UserDto dto) {
         logger.info("[Register] username={} - 用户注册 / User registration", dto.getUsername());
         service.register(dto);
-        return "注册成功！/ Registered successfully!";
+        return " Registered successfully!";
     }
 
     /**

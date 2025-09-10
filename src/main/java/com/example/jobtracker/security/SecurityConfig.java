@@ -50,17 +50,17 @@ public class SecurityConfig {
 
 // SecurityConfig
 
+    //@Bean
+    //    // 仅调试：保证数据库密码为 BCrypt
+  //  CommandLineRunner seed(UserRepository repo, PasswordEncoder pe) {
+      //  return args -> repo.findByUsername("user1").orElseGet(() -> {
+        //    var u = new com.example.jobtracker.domain.User();
+          //  u.setUsername("user1");
+            //u.setPassword(pe.encode("123456"));
+            //return repo.save(u);
+        //});
+    //}
 
-    @Bean
-        // 仅调试：保证数据库密码为 BCrypt
-    CommandLineRunner seed(UserRepository repo, PasswordEncoder pe) {
-        return args -> repo.findByUsername("user1").orElseGet(() -> {
-            var u = new com.example.jobtracker.domain.User();
-            u.setUsername("user1");
-            u.setPassword(pe.encode("123456"));
-            return repo.save(u);
-        });
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -126,8 +126,8 @@ public class SecurityConfig {
 
                 // ????（保持?原来的）
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/login", "/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/login","/api/tenants").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/login", "/logout","/api/tenants").permitAll()
                         .requestMatchers("/css/**","/images/**","/api/auth/refresh","/register","/api/users/register","/auth/silent-refresh","/js/**",
                                 "/style.css","/favicon.ico","/error").permitAll()
                         .anyRequest().authenticated()

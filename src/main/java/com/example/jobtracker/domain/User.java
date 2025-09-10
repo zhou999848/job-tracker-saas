@@ -17,6 +17,10 @@ public class User {
     private Instant passwordChangedAt; // 密码最近更新时间, 用于密码过期检查,用于让旧 Token 失效。
 private String displayName;
 private String email;
+
+    @ManyToOne//多用户对一租户(tenant)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
     // Getter & Setter
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -45,4 +49,6 @@ private String email;
     public String getEmail() {
         return email;
     }
+    public Tenant getTenant() { return tenant; }
+    public void setTenant(Tenant tenant) { this.tenant = tenant; }
 }

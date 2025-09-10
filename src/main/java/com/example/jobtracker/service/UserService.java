@@ -1,9 +1,11 @@
 package com.example.jobtracker.service;
 
+import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.ChangePasswordRequest;
 import com.example.jobtracker.dto.UpdateProfileRequest;
 import com.example.jobtracker.dto.UserDto;
+import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.security.SessionKickoutService;
 import jakarta.transaction.Transactional;
@@ -31,16 +33,22 @@ private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final SessionKickoutService sessionKickoutService;
 private final UserRepository repo;
     private final PasswordEncoder encoder;
-    public UserService(UserRepository repo, PasswordEncoder encoder, SessionKickoutService sessionKickoutService) {
+    private final TenantRepository tenantRepo;
+    public UserService(UserRepository repo, PasswordEncoder encoder, SessionKickoutService sessionKickoutService, TenantRepository tenantRepo) {
+
         this.repo = repo;
         this.encoder = encoder;
         this.sessionKickoutService = sessionKickoutService;
+        this.tenantRepo = tenantRepo;
     }
 
     public void register(UserDto dto) {
+        Tenant tenant = tenantRepo.findById(dto.getTenantId())//新增
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
         User user = new User();
         user.setUsername(dto.getUsername());
-        user.setPassword(encoder.encode(dto.getPassword()));  // 加密
+        user.setPassword(encoder.encode(dto.getPassword()));
+        user.setTenant(tenant);            // ★ 必须：绑定租户
         repo.save(user);
     }
     @Transactional//新增

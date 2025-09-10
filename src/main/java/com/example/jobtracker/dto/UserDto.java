@@ -1,11 +1,15 @@
 package com.example.jobtracker.dto;
 
 
+import com.example.jobtracker.domain.Tenant;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.UUID;
+
 public class UserDto {
+
     @NotBlank(message="username cannot be blank")
     private String username;
     @NotBlank(message="password cannot be blank")
@@ -14,10 +18,18 @@ public class UserDto {
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$",
             message = "Need upper, lower and digit")
     private String password;
+private UUID tenantId;
 
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+
+    public UUID getTenantId() {
+        return tenantId;
+    }
+    public void setTenantId(UUID tenantId) {
+        this.tenantId = tenantId;
+    }
 }
