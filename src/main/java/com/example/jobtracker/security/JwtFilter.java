@@ -119,7 +119,7 @@ public class JwtFilter extends OncePerRequestFilter {
                                     principal, null, userDetails.getAuthorities());
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(auth);
-
+                   com.example.jobtracker.tenant.TenantContext.set(tenantId); // ★ 把租户放入上下文
 
                 } catch (Exception e) {
                     log.error("[JWT] unexpected auth error", e);
