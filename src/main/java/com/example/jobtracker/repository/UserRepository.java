@@ -8,8 +8,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
-    Optional<User> findByUsername(String username);  // 登录用
+    //Optional<User> findByUsername(String username);  // 改为带tenantId的（见下）
     boolean existsByUsername(String username);
 
-    Optional<UUID> findIdByUsername(String username);
+
+
+    long countByTenantId(UUID tenantId);//统计方法
+
+
+    // ✅ 租户内唯一：用于创建前判重
+    boolean existsByTenantIdAndUsername(UUID tenantId, String username);
+
+    // 可选：查具体用户（可能别处也用得上）
+    Optional<User> findByTenantIdAndUsername(UUID tenantId, String username);
 }

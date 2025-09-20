@@ -21,7 +21,14 @@ private String email;
     @ManyToOne//多用户对一租户(tenant)
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
-    // Getter & Setter
+    // ✅ 新增字段：角色
+    @Column(nullable = false)
+    private String role = "USER"; // 默认值 USER
+
+    // getter / setter
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 

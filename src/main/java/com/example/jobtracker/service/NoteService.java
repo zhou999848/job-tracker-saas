@@ -1,5 +1,6 @@
 package com.example.jobtracker.service;
 
+import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.NoteDto;
@@ -7,7 +8,7 @@ import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.NoteRepository;
 import com.example.jobtracker.repository.UserRepository;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,86 +27,118 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class NoteService {
+
     private final NoteRepository noteRepo;
     private final UserRepository userRepo;
     private final JobApplicationRepository jobRepo;
+    private final CurrentTenant currentTenant;
 
-
-    public NoteService(NoteRepository noteRepository, UserRepository userRepository, JobApplicationRepository jobRepo) {
-
-        this.noteRepo = noteRepository;
-        this.userRepo= userRepository;
+    public NoteService(NoteRepository noteRepo,
+                       UserRepository userRepo,
+                       JobApplicationRepository jobRepo,
+                       CurrentTenant currentTenant) {
+        this.noteRepo = noteRepo;
+        this.userRepo = userRepo;
         this.jobRepo = jobRepo;
+        this.currentTenant = currentTenant;
     }
-
-    public void save(NoteDto dto) {
-        // ① 获取当前登录的用户名
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        // ② 查找数据库中对应的 User 对象
-        User user = userRepo.findByUsername(username).orElseThrow();
-
-        Note note = new Note();
-
-        // ③ 创建 Note 实体对象，并设置字段
-
-        note.setContent(dto.getContent());       // 设置内容
-        note.setCreatedAt(dto.getCreatedAt());   // 设置时间（如果有）
-        note.setJobId(dto.getJobId());           // 设置关联职位ID（外键）
-        note.setFilePaths(dto.getFilePaths());
-        // ④ 绑定当前用户
-        note.setUser(user);
-
-        // ⑤ 保存
-        noteRepo.save(note);
-    }
-
-    public void save(Note note) {
-        noteRepo.save(note);
-    }
-
-
-    public Page<NoteDto> findByJobIdPaged(UUID jobId, int page, int size) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        PageRequest request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return noteRepo.findByUserUsernameAndJobId(username, jobId, request)
-                .map(note -> {
-                    NoteDto dto = new NoteDto();
-                    dto.setId(note.getId());
-                    dto.setJobId(note.getJobId());
-                    dto.setContent(note.getContent());
-                    dto.setCreatedAt(note.getCreatedAt());
-                    dto.setFilePaths(note.getFilePaths() == null ? List.of() : new ArrayList<>(note.getFilePaths()));// 设置附件路径
-                    return dto;
-                });
-    }
-
-
-    public void delete(UUID id) {
-        noteRepo.deleteById(id);
-    }
-
 
     @Transactional
-    public void checkOwner(UUID id) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();//获取当前登录用户
+    public void save(NoteDto dto) {
+        // 当前用户 & 租户
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID tenantId = currentTenant.requireTenantId();
 
-        Note note = noteRepo.findById(id)//加载note，并检查是不是当前用户的
+        User user = userRepo.findByTenantIdAndUsername(tenantId,username).orElseThrow();
+
+        // 先按“租户 + 主键”加载 Job，防越权
+        JobApplication job = jobRepo.findByIdAndTenantId(dto.getJobId(), tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
+
+        Note note = new Note();
+        note.setTenant(job.getTenant());     // 绑定租户（与 job 一致）
+        note.setUser(user);                  // 创建者
+        note.setJobId(dto.getJobId());                    // 关联职位
+        // 如果你的 Note 还是 jobId 基本字段，请用： note.setJobId(dto.getJobId());
+
+        note.setContent(dto.getContent());
+        note.setCreatedAt(dto.getCreatedAt());
+        note.setFilePaths(dto.getFilePaths());
+
+        noteRepo.save(note);
+    }
+
+    @Transactional
+    public void save(Note note) {
+        // 保底：若外部没设租户/用户/职位，这里补齐并做校验
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID tenantId = currentTenant.requireTenantId();
+
+        if (note.getUser() == null) {
+            note.setUser(userRepo.findByTenantIdAndUsername(tenantId,username).orElseThrow());
+        }
+        if (note.getJobId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Job is required");
+        }
+        // 校验：job 必须属于当前租户
+        JobApplication job = jobRepo.findByIdAndTenantId(note.getJobId(), tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Cross-tenant job"));
+        note.setJobId(note.getJobId());
+
+        if (note.getTenant() == null) {
+            note.setTenant(job.getTenant());
+        }
+        noteRepo.save(note);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<NoteDto> findByJobIdPaged(UUID jobId, int page, int size) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID tenantId = currentTenant.requireTenantId();
+
+        PageRequest request = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // 租户 + 用户名 + Job 限定
+        Page<Note> pg = noteRepo.findByTenantIdAndUser_UsernameAndJobId(tenantId, username, jobId, request);
+        // 若你还是旧方法：noteRepo.findByTenantIdAndUser_UsernameAndJobId(tenantId, username, jobId, request);
+
+        return pg.map(n -> {
+            NoteDto dto = new NoteDto();
+            dto.setId(n.getId());
+           dto.setJobId(n.getJobId());
+            dto.setContent(n.getContent());
+            dto.setCreatedAt(n.getCreatedAt());
+            dto.setFilePaths(n.getFilePaths() == null ? List.of() : new ArrayList<>(n.getFilePaths()));
+            return dto;
+        });
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID tenantId = currentTenant.requireTenantId();
+
+        Note note = noteRepo.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         if (!note.getUser().getUsername().equals(username)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
-
         noteRepo.delete(note);
     }
 
-    public Note findById(UUID id) {//4-5対応controller。findById
-        return noteRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该职位"));
+    @Transactional
+    public void checkOwner(UUID id) {
+        // 与 delete 合并同逻辑，保留兼容
+        delete(id);
     }
 
-
-
+    @Transactional(readOnly = true)
+    public Note findById(UUID id) {
+        UUID tenantId = currentTenant.requireTenantId();
+        return noteRepo.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到该笔记"));
+    }
 }
+
+

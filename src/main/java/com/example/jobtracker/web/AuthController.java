@@ -1,4 +1,5 @@
 package com.example.jobtracker.web;
+import com.example.jobtracker.dto.LoginRequest;
 import com.example.jobtracker.security.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,7 +33,8 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request,
-                                     HttpServletResponse response) {
+                                     HttpServletResponse response,
+    LoginRequest req) {
         String refresh = jwtUtil.resolveToken(request, "REFRESH");
 
         if (refresh == null || !jwtUtil.validateRefreshTokenStrict(refresh)) {
@@ -45,7 +47,7 @@ public class AuthController {
         String username = jwtUtil.getUsername(refresh);
 
         // ✅ 新 Access
-        String newAccess = jwtUtil.generateAccessToken(username);
+        String newAccess = jwtUtil.generateAccessToken(req.getTenantId(),username);
         ResponseCookie accessCookie = ResponseCookie.from("ACCESS", newAccess)
                 .httpOnly(true)
                 .secure(false) // 本地调试 false; 生产 true
@@ -56,7 +58,7 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
 
         // ✅ 新 Refresh（Rotation）
-        String newRefresh = jwtUtil.generateRefreshToken(username);
+        String newRefresh = jwtUtil.generateRefreshToken(req.getTenantId(),username);
         ResponseCookie refreshCookie = ResponseCookie.from("REFRESH", newRefresh)
                 .httpOnly(true)
                 .secure(false)

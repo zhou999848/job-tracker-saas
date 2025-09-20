@@ -16,11 +16,17 @@ import org.springframework.data.repository.query.Param;
 
 
 public interface JobApplicationRepository extends JpaRepository<JobApplication,UUID> {
-    Page<JobApplication> findByUserUsername(String username, Pageable pageable);
+    // 列表：按租户 + 用户名分页
+    Page<JobApplication> findByTenantIdAndUser_Username(UUID tenantId, String username, Pageable pageable);
 
-    // Repo 例子（方法名可以不同，但要包含 username 过滤）
-    Page<JobApplication> findByCompanyContainingIgnoreCaseAndUser_Username(
-            String keyword, String username, Pageable pageable);
+    // 搜索：按租户 + 关键字(公司名) + 用户名分页
+    Page<JobApplication> findByTenantIdAndCompanyContainingIgnoreCaseAndUser_Username(
+            UUID tenantId, String keyword, String username, Pageable pageable);
 
+    // 详情：按租户 + 主键
+    Optional<JobApplication> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    // （可选）仅按租户分页（用于租户管理员总览）
+    Page<JobApplication> findByTenantId(UUID tenantId, Pageable pageable);
 
 }

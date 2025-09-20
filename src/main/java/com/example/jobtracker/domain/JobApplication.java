@@ -14,9 +14,6 @@ public class JobApplication {
     @Id
     private UUID id = UUID.randomUUID();
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JsonIgnore                               // ✅ API 出口避免序列化 user（防递归/懒加载）
-    private User user;
 
     private String company;
     private String position;
@@ -25,7 +22,18 @@ public class JobApplication {
 
     @Column(name = "file_path")              // ✅ 下划线命名
     private String filePath;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;    // ✅ 新增：所属租户
 
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnore                               // ✅ API 出口避免序列化 user（防递归/懒加载）
+    private User user;
+
+
+    public Tenant getTenant() {return tenant;}
+   public void setTenant(Tenant tenant) {this.tenant=tenant;}
     public void setFilePath(String filePath) {this.filePath=filePath;}
     public String getFilePath() {return this.filePath;}
     public UUID getId() {return id;}

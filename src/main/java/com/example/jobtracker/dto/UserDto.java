@@ -2,6 +2,7 @@ package com.example.jobtracker.dto;
 
 
 import com.example.jobtracker.domain.Tenant;
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -18,7 +19,15 @@ public class UserDto {
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$",
             message = "Need upper, lower and digit")
     private String password;
-private UUID tenantId;
+    private UUID tenantId; // 所属租户ID
+    // ✅ 新增字段：角色
+    @Column(nullable = false)
+    private String role = "USER"; // 默认值 USER
+
+    // getter / setter
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+
 
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
@@ -26,10 +35,6 @@ private UUID tenantId;
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
-    public UUID getTenantId() {
-        return tenantId;
-    }
-    public void setTenantId(UUID tenantId) {
-        this.tenantId = tenantId;
-    }
+    public UUID getTenantId() { return tenantId; }
+    public void setTenantId(UUID tenantId) { this.tenantId = tenantId; }
 }

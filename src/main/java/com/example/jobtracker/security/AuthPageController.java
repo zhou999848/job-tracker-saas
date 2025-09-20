@@ -1,6 +1,7 @@
 package com.example.jobtracker.security;
 
 
+import com.example.jobtracker.dto.LoginRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -28,7 +29,8 @@ public class AuthPageController {
     @GetMapping("/silent-refresh")
     public void silentRefresh(@RequestParam(required = false) String redirect,
                               HttpServletRequest req,
-                              HttpServletResponse res) throws IOException {
+                              HttpServletResponse res,
+                              LoginRequest reqs) throws IOException {
 
         String refresh = readCookie(req, "REFRESH");
 
@@ -45,7 +47,7 @@ public class AuthPageController {
 
         // ✅ 成功：签发新的 Access（推荐也 Rotate Refresh）
         String username = jwtUtil.getUsername(refresh);
-        String newAccess = jwtUtil.generateAccessToken(username);
+        String newAccess = jwtUtil.generateAccessToken(reqs.getTenantId(),username);
         ResponseCookie accessCookie = ResponseCookie.from("ACCESS", newAccess)
                 .httpOnly(true)
                 .secure(false) // 本地调试 false; 生产 true
@@ -56,7 +58,7 @@ public class AuthPageController {
         res.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
 
         // 可选：刷新 Refresh Token（Rotation）
-        String newRefresh = jwtUtil.generateRefreshToken(username);
+        String newRefresh = jwtUtil.generateRefreshToken(reqs.getTenantId(),username);
         ResponseCookie refreshCookie = ResponseCookie.from("REFRESH", newRefresh)
                 .httpOnly(true)
                 .secure(false) // 本地调试 false; 生产 true

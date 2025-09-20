@@ -8,6 +8,7 @@ import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.security.LoginAttemptService;
+import com.example.jobtracker.service.CurrentTenant;
 import com.example.jobtracker.service.JobApplicationService;
 import com.example.jobtracker.service.NoteService;
 import com.example.jobtracker.service.UserService;
@@ -64,7 +65,8 @@ public class PageController {
     private final NoteService noteService;
     private final UserService userService;
 private final LoginAttemptService loginAttemptService;
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService) {
+    private final CurrentTenant currentTenant;
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant) {
 
         this.loginAttemptService = loginAttemptService;
         this.jobRepo = jobRepo;
@@ -75,6 +77,7 @@ private final LoginAttemptService loginAttemptService;
         this.noteService = noteService;
         this.userService = userService;
         this.jobService = jobService;
+        this.currentTenant = currentTenant;
     }
 
     private String getCurrentUsername() {
@@ -282,8 +285,8 @@ private final LoginAttemptService loginAttemptService;
         }
         logger.info("全部待保存附件路径: {}", savedPaths); // 新增日志
 
-
-        User user = userRepo.findByUsername(username)
+        UUID tenantId = currentTenant.requireTenantId();
+        User user = userRepo.findByTenantIdAndUsername(tenantId,username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用?不存在/未登?"));
         Note note = new Note();
         note.setUser(user);
@@ -310,7 +313,8 @@ private final LoginAttemptService loginAttemptService;
 
         // 1. 获取当前登录用户
         String username = principal.getName();
-        User user = userRepo.findByUsername(username)
+        UUID tenantId = currentTenant.requireTenantId();
+        User user = userRepo.findByTenantIdAndUsername(tenantId,username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户不存在/未登录"));
 
         // 2. 查找笔记
@@ -486,7 +490,8 @@ private final LoginAttemptService loginAttemptService;
                           @RequestParam(required = false) String redirect,
                           HttpServletResponse response,
                           HttpServletRequest request,
-                          Model model) {
+                          Model model,
+                          LoginRequest req) {
 
         // —— 1) 先做空白/格式处理（可选）
         String uname = (username == null) ? "" : username.trim();
@@ -506,8 +511,8 @@ private final LoginAttemptService loginAttemptService;
             loginAttemptService.loginSucceeded(uname);
 
             // ✅ 生成两种 token（你已有 JwtUtil，直接用）
-            String access = jwtUtil.generateAccessToken(uname);   // 短期，比如 15 分钟
-            String refresh = jwtUtil.generateRefreshToken(uname);  // 长期，比如 7 天
+            String access = jwtUtil.generateAccessToken(req.getTenantId(),uname);   // 短期，比如 15 分钟
+            String refresh = jwtUtil.generateRefreshToken(req.getTenantId(),uname);  // 长期，比如 7 天
 
             // ✅ 本地 http 调试 secure(false)；部署到 HTTPS 再改 true
             boolean secure = request.isSecure(); // 本地一般是 false

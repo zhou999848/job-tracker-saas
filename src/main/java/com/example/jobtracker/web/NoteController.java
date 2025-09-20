@@ -1,5 +1,6 @@
 package com.example.jobtracker.web;
 
+import com.example.jobtracker.service.CurrentTenant;
 import org.springframework.core.io.UrlResource;
 import org.springframework.ui.Model;
 import com.example.jobtracker.domain.User;
@@ -43,9 +44,11 @@ public class NoteController {
 
     private final NoteService service;
     private final UserRepository userRepository;
-    public NoteController(NoteService service, UserRepository userRepository) {
+    private final CurrentTenant currentTenant;
+    public NoteController(NoteService service, UserRepository userRepository,CurrentTenant currentTenant) {
         this.service = service;
         this.userRepository = userRepository;
+        this.currentTenant = currentTenant;
     }
 
     private String getCurrentUsername() {//获取“当前登录的用户名”，用于后续日志记录或权限判断。
@@ -104,7 +107,7 @@ public class NoteController {
                               @RequestParam("jobId") UUID jobId,
                               @RequestParam("content") String content) throws IOException {
 
-        String username = getCurrentUsername();
+        String username = currentTenant.currentUsername();
         List<String> savedPaths = new ArrayList<>();
 
         for (MultipartFile file : files) {
@@ -123,8 +126,8 @@ public class NoteController {
         logger.info("全部待保存附件路径: {}", savedPaths); // 新增日志
 
 
-
-        User user = userRepository.findByUsername(username)
+UUID tenantId = currentTenant.requireTenantId();
+        User user = userRepository.findByTenantIdAndUsername(tenantId,username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用?不存在/未登?"));
         Note note = new Note();
         note.setUser(user);

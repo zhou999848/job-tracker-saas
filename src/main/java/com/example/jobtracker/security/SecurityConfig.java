@@ -9,11 +9,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -34,6 +36,8 @@ import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity // ✅ 开启 @PreAuthorize 等注解
+
 public class SecurityConfig {
 
     @Bean
@@ -127,9 +131,9 @@ public class SecurityConfig {
                 // ????（保持?原来的）
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/login","/api/tenants").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/login", "/logout","/api/tenants").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/login", "/logout","/api/tenants","/api/users/login","/admin/tenants/{tenantId}/users").permitAll()
                         .requestMatchers("/css/**","/images/**","/api/auth/refresh","/register","/api/users/register","/auth/silent-refresh","/js/**",
-                                "/style.css","/favicon.ico","/error").permitAll()
+                                "/style.css","/favicon.ico","/error","/api/bootstrap/**").permitAll()
                         .anyRequest().authenticated()
                 )
 

@@ -32,7 +32,15 @@ public class Note {
     @Transient
     private List<String> removeFiles;          // 勾选要删除的旧文件（用原路径
 
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;    // ✅ 新增：所属租户
+
+
     // Getter & Setter
+    public Tenant getTenant() {return tenant;}
+    public void setTenant(Tenant tenant) {this.tenant=tenant;}
     public UUID getId() {
         return id;
     }
