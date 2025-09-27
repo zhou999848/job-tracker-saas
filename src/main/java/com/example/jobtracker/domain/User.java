@@ -1,4 +1,5 @@
 package com.example.jobtracker.domain;
+import com.example.jobtracker.TenantInvite7a4.Role;
 import jakarta.persistence.*;
 
 import java.time.Instant;
@@ -22,12 +23,19 @@ private String email;
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
     // ✅ 新增字段：角色
-    @Column(nullable = false)
-    private String role = "USER"; // 默认值 USER
+    // 2) User 实体加角色（字符串存储最直观）
+    @Enumerated(EnumType.STRING)
+    private Role role;
+private Instant createdAt;
+    @Version
+    private Long version;
+
 
     // getter / setter
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -58,4 +66,12 @@ private String email;
     }
     public Tenant getTenant() { return tenant; }
     public void setTenant(Tenant tenant) { this.tenant = tenant; }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
 }

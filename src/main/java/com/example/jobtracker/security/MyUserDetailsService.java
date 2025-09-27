@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -33,12 +34,18 @@ public class MyUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UUID tenantId = com.example.jobtracker.tenant.TenantContext.requireTenantIdFromRequest();
+        // 获取当前租户 ID（必须有，否则抛异常）
+        UUID tenantId = Optional.ofNullable(TenantContext.get())        // 先用 ThreadLocal
+                .orElseGet(() -> TenantContext.requireTenantIdFromRequest()    // 再回退 request attr
+                );
+        if (tenantId == null) {
+            throw new IllegalStateException("Tenant not resolved");
+        }
         User user = repo.findByTenantIdAndUsername(tenantId, username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户名不存在"));
 
         // 规范化角色
-        String rawRole = (user.getRole() == null || user.getRole().isBlank()) ? "USER" : user.getRole();
+        String rawRole = user.getRole() == null ? "USER" : user.getRole().name();
         String role = rawRole.trim().toUpperCase();
         if (role.startsWith("ROLE_")) {
             role = role.substring(5); // 去掉多余的 ROLE_

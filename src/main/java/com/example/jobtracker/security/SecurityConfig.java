@@ -130,10 +130,11 @@ public class SecurityConfig {
 
                 // ????（保持?原来的）
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/login","/api/tenants").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/login", "/logout","/api/tenants","/api/users/login","/admin/tenants/{tenantId}/users").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/login","/api/tenants","/api/invites/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/login", "/logout","/api/tenants","/api/users/login","/admin/tenants/{tenantId}/users","/api/invites/{token}/accept").permitAll()
                         .requestMatchers("/css/**","/images/**","/api/auth/refresh","/register","/api/users/register","/auth/silent-refresh","/js/**",
-                                "/style.css","/favicon.ico","/error","/api/bootstrap/**").permitAll()
+                                "/style.css","/favicon.ico","/error","/api/bootstrap/**","/api/admin/tenants/{tenantId}/members/{userId}").permitAll()
+
                         .anyRequest().authenticated()
                 )
 

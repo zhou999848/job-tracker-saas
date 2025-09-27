@@ -21,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -57,78 +58,100 @@ public class JwtFilter extends OncePerRequestFilter {
                 || path.equals("/favicon.ico");
     }
 
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            String token = resolveAccessToken(request);
-            if (token != null) {
-                try {
+        UUID ctxTenantId = null;
+
+        try {
+            // 仅当当前还未认证时才尝试基于 JWT 认证
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                String token = resolveAccessToken(request);
+                if (token != null) {
+                    // 1) 严格校验 Access Token（签名/过期/时钟偏移等）
                     if (!jwtUtil.validateAccessTokenStrict(token)) {
                         clearAccessCookie(response, request.isSecure());
                         clearRefreshCookie(response, request.isSecure());
                         invalidateSessionIfPresent(request);
                         SecurityContextHolder.clearContext();
-                        chain.doFilter(request, response);
-                        return;
+                    } else {
+                        // 2) 解析载荷
+                        String username = jwtUtil.getUsername(token);
+                        UUID tenantId = jwtUtil.getTenantId(token);
+                        Instant tokenIat = jwtUtil.getIssuedAt(token);
+
+                        // 3) 用 tenantId + username 查实体（拿到 id + pwdChangedAt）
+                        Optional<User> optUser = userRepository.findByTenantIdAndUsername(tenantId, username);
+
+                        if (optUser.isEmpty()) {
+                            // token 有效但用户已不存在/跨租户不匹配
+                            clearAccessCookie(response, request.isSecure());
+                            clearRefreshCookie(response, request.isSecure());
+                            invalidateSessionIfPresent(request);
+                            SecurityContextHolder.clearContext();
+                        } else {
+                            User user = optUser.get();
+
+                            // 4) 密码变更失效（token iat 必须晚于 pwdChangedAt + 容忍偏移）
+                            Instant pwdAt = user.getPasswordChangedAt();
+                            boolean invalidByPwdChange =
+                                    (pwdAt != null) && (tokenIat == null || !tokenIat.isAfter(pwdAt.plus(IAT_SKEW)));
+
+                            if (invalidByPwdChange) {
+                                clearAccessCookie(response, request.isSecure());
+                                clearRefreshCookie(response, request.isSecure());
+                                invalidateSessionIfPresent(request);
+                                SecurityContextHolder.clearContext();
+                            } else {
+                                // 5) 设置租户上下文（ThreadLocal + Request Attribute）
+                                ctxTenantId = tenantId;
+                                com.example.jobtracker.tenant.TenantContext.set(tenantId);
+                                request.setAttribute(com.example.jobtracker.tenant.TenantContext.REQUEST_ATTR, tenantId);
+
+                                // 6) 加载权限（可能依赖 TenantContext）
+                                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+                                // 7) 自定义 Principal，带上 userId/username/tenantId
+                                LoginUser principal = new LoginUser(
+                                        user.getId(),          // ★ 关键：不再是 null
+                                        user.getUsername(),
+                                        tenantId
+                                );
+
+                                org.slf4j.LoggerFactory.getLogger(JwtFilter.class).info(
+                                        "[AUTH] user={}, tenant={}, authorities={}",
+                                        username, tenantId, userDetails.getAuthorities()
+                                );
+
+                                UsernamePasswordAuthenticationToken auth =
+                                        new UsernamePasswordAuthenticationToken(
+                                                principal, null, userDetails.getAuthorities());
+                                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                                SecurityContextHolder.getContext().setAuthentication(auth);
+                            }
+                        }
                     }
-
-                    String username = jwtUtil.getUsername(token);
-                    UUID tenantId = jwtUtil.getTenantId(token);
-                    Instant tokenIat = jwtUtil.getIssuedAt(token);
-
-                    // 密码变更校验
-                    Instant pwdAt = userRepository.findByTenantIdAndUsername( tenantId,username)
-                            .map(User::getPasswordChangedAt)
-                            .orElse(null);
-
-                    boolean invalidByPwdChange = (pwdAt != null)
-                            && (tokenIat == null || !tokenIat.isAfter(pwdAt.plus(IAT_SKEW)));
-
-                    if (invalidByPwdChange) {
-                        clearAccessCookie(response, request.isSecure());
-                        clearRefreshCookie(response, request.isSecure());
-                        invalidateSessionIfPresent(request);
-                        SecurityContextHolder.clearContext();
-                        chain.doFilter(request, response);
-                        return;
-                    }
-
-                    // ★ 构建认证
-                    com.example.jobtracker.tenant.TenantContext.set(tenantId); // 放进上下文
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-// ★ 自定义 Principal，带 tenantId
-                    LoginUser principal = new LoginUser(
-                            // 这里可以放 user 的 id，如果你有的话；没有就 null
-                            null,
-                            username,
-                            tenantId
-                    );
-
-                    org.slf4j.LoggerFactory.getLogger(JwtFilter.class)
-                            .info("[AUTH] user={}, tenant={}, authorities={}",
-                                    username, tenantId, userDetails.getAuthorities());
-
-// Authentication 里用自定义 principal
-                    UsernamePasswordAuthenticationToken auth =
-                            new UsernamePasswordAuthenticationToken(
-                                    principal, null, userDetails.getAuthorities());
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                   com.example.jobtracker.tenant.TenantContext.set(tenantId); // ★ 把租户放入上下文
-
-                } catch (Exception e) {
-                    log.error("[JWT] unexpected auth error", e);
-                    clearAccessCookie(response, request.isSecure());
-                } finally {
-                    com.example.jobtracker.tenant.TenantContext.clear();
                 }
             }
+        } catch (Exception e) {
+            // 认证阶段任何异常都做降级：清上下文与 Cookie，放行给后续异常处理
+            log.error("[JWT] unexpected auth error", e);
+            clearAccessCookie(response, request.isSecure());
+            clearRefreshCookie(response, request.isSecure());
+            invalidateSessionIfPresent(request);
+            SecurityContextHolder.clearContext();
+        } finally {
+            // 只在本过滤器设置过租户时才清理，避免提前清导致后续用不到
+            if (ctxTenantId != null) {
+                com.example.jobtracker.tenant.TenantContext.clear();
+            }
         }
+
+        // 始终只调用一次
         chain.doFilter(request, response);
     }
 
