@@ -1,7 +1,9 @@
 package com.example.jobtracker.domain;
 
+import com.example.jobtracker.ああ７a５.TenantStatus;
 import jakarta.persistence.*;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +20,10 @@ public class Tenant {
 
     @OneToMany(mappedBy = "tenant")
     private List<User> users = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TenantStatus status = TenantStatus.ACTIVE;
 
     // getter/setter
     public UUID getId() {
@@ -37,6 +43,18 @@ public void setName(String name) {
 public List<User> getUsers() {
         return users;
     }
+    public void setUsers(List<User> users) {
+        this.users = users;
+    }
+    public TenantStatus getStatus() {
+        return status;
+    }
+    public void setStatus(TenantStatus status) { this.status = status;
 }
 
+    public Instant getOtherField() {
+
+        return null;
+    }
+}
 

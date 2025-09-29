@@ -2,6 +2,7 @@ package com.example.jobtracker.security;
 
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.repository.UserRepository;
+import com.example.jobtracker.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -68,27 +69,21 @@ public class JwtFilter extends OncePerRequestFilter {
         UUID ctxTenantId = null;
 
         try {
-            // 仅当当前还未认证时才尝试基于 JWT 认证
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 String token = resolveAccessToken(request);
                 if (token != null) {
-                    // 1) 严格校验 Access Token（签名/过期/时钟偏移等）
                     if (!jwtUtil.validateAccessTokenStrict(token)) {
                         clearAccessCookie(response, request.isSecure());
                         clearRefreshCookie(response, request.isSecure());
                         invalidateSessionIfPresent(request);
                         SecurityContextHolder.clearContext();
                     } else {
-                        // 2) 解析载荷
                         String username = jwtUtil.getUsername(token);
                         UUID tenantId = jwtUtil.getTenantId(token);
                         Instant tokenIat = jwtUtil.getIssuedAt(token);
 
-                        // 3) 用 tenantId + username 查实体（拿到 id + pwdChangedAt）
                         Optional<User> optUser = userRepository.findByTenantIdAndUsername(tenantId, username);
-
                         if (optUser.isEmpty()) {
-                            // token 有效但用户已不存在/跨租户不匹配
                             clearAccessCookie(response, request.isSecure());
                             clearRefreshCookie(response, request.isSecure());
                             invalidateSessionIfPresent(request);
@@ -96,7 +91,6 @@ public class JwtFilter extends OncePerRequestFilter {
                         } else {
                             User user = optUser.get();
 
-                            // 4) 密码变更失效（token iat 必须晚于 pwdChangedAt + 容忍偏移）
                             Instant pwdAt = user.getPasswordChangedAt();
                             boolean invalidByPwdChange =
                                     (pwdAt != null) && (tokenIat == null || !tokenIat.isAfter(pwdAt.plus(IAT_SKEW)));
@@ -107,17 +101,16 @@ public class JwtFilter extends OncePerRequestFilter {
                                 invalidateSessionIfPresent(request);
                                 SecurityContextHolder.clearContext();
                             } else {
-                                // 5) 设置租户上下文（ThreadLocal + Request Attribute）
+                                // ★★★ 在进入控制器之前设置 ThreadLocal（单一真相）
                                 ctxTenantId = tenantId;
                                 com.example.jobtracker.tenant.TenantContext.set(tenantId);
+                                // （可选）Request Attribute，仅作调试/兼容
                                 request.setAttribute(com.example.jobtracker.tenant.TenantContext.REQUEST_ATTR, tenantId);
 
-                                // 6) 加载权限（可能依赖 TenantContext）
                                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                                // 7) 自定义 Principal，带上 userId/username/tenantId
                                 LoginUser principal = new LoginUser(
-                                        user.getId(),          // ★ 关键：不再是 null
+                                        user.getId(),
                                         user.getUsername(),
                                         tenantId
                                 );
@@ -137,23 +130,27 @@ public class JwtFilter extends OncePerRequestFilter {
                     }
                 }
             }
+
+            // ★★★ 先放行到后续过滤器/控制器
+            chain.doFilter(request, response);
+
         } catch (Exception e) {
-            // 认证阶段任何异常都做降级：清上下文与 Cookie，放行给后续异常处理
+            // 认证阶段的异常：降级，仍然放行到后续异常处理链
             log.error("[JWT] unexpected auth error", e);
             clearAccessCookie(response, request.isSecure());
             clearRefreshCookie(response, request.isSecure());
             invalidateSessionIfPresent(request);
             SecurityContextHolder.clearContext();
+            throw e; // 交给上层统一错误处理（或不抛，看你策略）
         } finally {
-            // 只在本过滤器设置过租户时才清理，避免提前清导致后续用不到
+            // ★★★ 确保在请求结束后清理 ThreadLocal，避免线程复用污染
             if (ctxTenantId != null) {
                 com.example.jobtracker.tenant.TenantContext.clear();
             }
+            // 不必强制在这里清 SecurityContextHolder，Spring Security 会在链路末尾处理
         }
-
-        // 始终只调用一次
-        chain.doFilter(request, response);
     }
+
 
     private void clearAccessCookie(HttpServletResponse response, boolean secure) {
         StringBuilder sb = new StringBuilder("ACCESS=; Path=/; Max-Age=0; HttpOnly; ");

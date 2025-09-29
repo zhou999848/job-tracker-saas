@@ -8,7 +8,7 @@ import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.security.LoginUser;
 import com.example.jobtracker.service.CurrentTenant;
-import com.example.jobtracker.tenant.TenantContext;
+import com.example.jobtracker.ああ７a５.TenantGuard;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
@@ -26,16 +26,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.jobtracker.TenantInvite7a4.Role;
-
-import java.io.Serializable;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.Base64.Encoder;
-import java.util.stream.Collectors;
 
 /**
  * 完成版 TenantAdminService
@@ -383,4 +379,8 @@ public class TenantAdminService {
         }
         return false;
     }
+
+
+
 }
+

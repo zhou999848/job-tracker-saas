@@ -7,6 +7,7 @@ import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.UserRepository;
 
+import com.example.jobtracker.ああ７a５.TenantGuard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
@@ -35,10 +36,13 @@ public class JobApplicationService {
     private final JobApplicationRepository jobRepository;
     private final UserRepository userRepository;
     private final CurrentTenant currentTenant;
+    private final TenantGuard guard;
 
     public JobApplicationService(JobApplicationRepository jobRepository,
                                  UserRepository userRepository,
-                                 CurrentTenant currentTenant) {
+                                 CurrentTenant currentTenant,
+                                 TenantGuard guard) {
+        this.guard = guard;
         this.jobRepository = jobRepository;
         this.userRepository = userRepository;
         this.currentTenant = currentTenant;
@@ -48,7 +52,8 @@ public class JobApplicationService {
     public void save(JobApplicationDto dto) {
         UUID tenantId = currentTenant.requireTenantId(); // 你已经在全项目统一用这个取租户ID ✅
         String username = currentTenant.currentUsername(); // ← 一定是 String，而不是 principal.toString()
-
+        // ✅ 写前统一拦截（跨租户 & SUSPENDED）
+        guard.requireWritableTenant(tenantId);
         User user = userRepository.findByTenantIdAndUsername(tenantId, username).orElseThrow(() -> new IllegalStateException(
                 "User not found under tenant. username=" + username + ", tenant=" + tenantId));
 
