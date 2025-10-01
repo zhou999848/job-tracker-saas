@@ -1,7 +1,7 @@
 package com.example.jobtracker.dto;
 
 
-import com.example.jobtracker.domain.Tenant;
+import com.example.jobtracker.TenantInvite7a4.Role;
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

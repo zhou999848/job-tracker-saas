@@ -46,7 +46,7 @@ public class TenantService {
             throw new IllegalArgumentException("Tenant already exists");
         }
         Tenant t = new Tenant();
-        t.setId(UUID.randomUUID());
+
         t.setName(name);
         t.setStatus(TenantStatus.ACTIVE);
         tenantRepo.save(t);

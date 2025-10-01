@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "tenants")
 public class Tenant {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.UUID)  // ✅ 自动 UUID
     private UUID id;
 
     @Column(nullable = false, unique = true, length = 100)

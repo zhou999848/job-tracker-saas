@@ -1,5 +1,6 @@
 package com.example.jobtracker.service;
 
+import com.example.jobtracker.TenantInvite7a4.Role;
 import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.ChangePasswordRequest;
@@ -67,6 +68,8 @@ public class UserService {
         user.setUsername(username);
         user.setPassword(encoder.encode(dto.getPassword()));
         user.setTenant(tenant);
+        // ✅ 关键：没有传 role 就给默认值
+        user.setRole(dto.getRole() != null ? Role.valueOf(dto.getRole()) : Role.USER);
 
 
 
