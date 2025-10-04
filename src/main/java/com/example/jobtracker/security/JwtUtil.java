@@ -138,6 +138,9 @@ public class JwtUtil {
                 .parseClaimsJws(token);
         return jws.getBody();
     }
+    public Claims getClaims(String token) {
+        return parseClaims(token);
+    }
 
     /* =========================
      * 从 Cookie 读取指定 token

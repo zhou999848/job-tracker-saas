@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -45,9 +47,9 @@ public class AuthController {
         }
 
         String username = jwtUtil.getUsername(refresh);
-
+ UUID tenantId = jwtUtil.getTenantId(refresh); // ✅ 从 Refresh 的 claims 里拿
         // ✅ 新 Access
-        String newAccess = jwtUtil.generateAccessToken(req.getTenantId(),username);
+        String newAccess = jwtUtil.generateAccessToken(tenantId,username);
         ResponseCookie accessCookie = ResponseCookie.from("ACCESS", newAccess)
                 .httpOnly(true)
                 .secure(false) // 本地调试 false; 生产 true
@@ -58,7 +60,7 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
 
         // ✅ 新 Refresh（Rotation）
-        String newRefresh = jwtUtil.generateRefreshToken(req.getTenantId(),username);
+        String newRefresh = jwtUtil.generateRefreshToken(tenantId,username);
         ResponseCookie refreshCookie = ResponseCookie.from("REFRESH", newRefresh)
                 .httpOnly(true)
                 .secure(false)

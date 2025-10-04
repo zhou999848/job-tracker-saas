@@ -1,9 +1,11 @@
 package com.example.jobtracker.web;
 
 
+import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.dto.ChangePasswordRequest;
 import com.example.jobtracker.dto.UpdateProfileRequest;
 import com.example.jobtracker.dto.UserDto;
+import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -36,38 +38,42 @@ public class UserController {
     private final AuthenticationManager authManager;
     private final JwtUtil jwtUtil;
     private final UserService service;
+    private final TenantRepository tenantRepo;
 
     @Autowired
     public UserController(AuthenticationManager authManager,
-                          JwtUtil jwtUtil, UserService service) {
+                          JwtUtil jwtUtil, UserService service,TenantRepository tenantRepo) {
         this.authManager = authManager;
         this.jwtUtil = jwtUtil;
         this.service = service;
+        this.tenantRepo = tenantRepo;
     }
-
     /**
-     * ✅ 推荐入口（管理员/邀请注册）
+     * ✅ 推荐入口（管理员/邀请注册）—— 使用租户ID（UUID）
      * [POST] /api/admin/tenants/{tenantId}/users
-     * @PreAuthorize 只允许管理员调用
      */
     @PostMapping("/admin/tenants/{tenantId}/users")
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','TENANT_ADMIN')")
-    public String registerViaAdminOrInvite(@PathVariable UUID tenantId, @RequestBody UserDto dto) {
-        logger.info("[Register-Admin] username={} tenant={} - 管理员/邀请注册", dto.getUsername(), tenantId);
+    public String registerViaAdminOrInvite(
+            @PathVariable UUID tenantId,
+            @RequestBody UserDto dto) {
+        logger.info("[Register-Admin] username={} tenantId={} - 管理员/邀请注册",
+                dto.getUsername(), tenantId);
         service.registerViaAdminOrInvite(dto, tenantId);
         return "Registered successfully!";
     }
 
     /**
-     * ⚠️ 仅限后台/兼容旧接口（不推荐外部调用）
+     * ⚠️ 仅限后台/兼容旧接口（不对外）
      * [POST] /api/users/register
      */
     @PostMapping("/register")
     public String register(@RequestBody UserDto dto) {
         logger.warn("[Register-Deprecated] username={} - 仅限后台使用！", dto.getUsername());
-        service.register(dto); // 注意：这里用 dto.getTenantId()，不能对外开放
+        service.register(dto); // 使用 dto.tenantId
         return "Registered successfully!";
     }
+
     /**
      * ✅ 登录接口 / User Login
      * [POST] /api/users/login
@@ -75,13 +81,39 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
         try {
-            // ★ 把租户放到上下文，供 UserDetailsService 使用
-            com.example.jobtracker.tenant.TenantContext.set(req.getTenantId());
-            authManager.authenticate(new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
-            String token = jwtUtil.generateAccessToken(req.getTenantId(), req.getUsername()); // ★
-            return ResponseEntity.ok(Map.of("token", token));
+            // 1) 校验输入
+            if (req.getTenantName() == null || req.getTenantName().isBlank()
+                    || req.getUsername() == null || req.getPassword() == null) {
+                return ResponseEntity.badRequest().body("tenantName/username/password required");
+            }
+
+            // 2) 解析 tenantName -> tenantId
+            Tenant tenant = tenantRepo.findByName(req.getTenantName().trim())
+                    .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
+            UUID tenantId = tenant.getId();
+
+            // 3) 将租户放入上下文（供 UserDetailsService 使用）
+            com.example.jobtracker.tenant.TenantContext.set(tenantId);
+
+            // 4) 执行认证
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
+
+            // 5) 生成 JWT（建议在 token 里带上 tenantId 与 username）
+            String token = jwtUtil.generateAccessToken(tenantId, req.getUsername());
+
+            // 6) 返回
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "tenantId", tenantId.toString(),
+                    "tenantName", tenant.getName(),
+                    "username", req.getUsername()
+            ));
         } catch (Exception e) {
+            logger.warn("Login failed: {}", e.getMessage());
             return ResponseEntity.status(401).body("用户名或密码错误 / Invalid username or password");
+        } finally {
+            com.example.jobtracker.tenant.TenantContext.clear();
         }
     }
 

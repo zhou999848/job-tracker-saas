@@ -58,8 +58,6 @@ public class TenantController {
         return service.list(q, pageable);
     }
 
-
-
     @PatchMapping("/{tenantId}/members/{userId}/role")
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
     public void changeRole(@PathVariable UUID tenantId,
@@ -80,11 +78,15 @@ public class TenantController {
     public void suspend(@PathVariable UUID tenantId) {
         systemTenantService.suspend(tenantId);
     }
+
     @PatchMapping("/{tenantId}/resume")
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public void resume(@PathVariable UUID tenantId) {
         systemTenantService.resume(tenantId);
     }
+
+
+
 }
 
 

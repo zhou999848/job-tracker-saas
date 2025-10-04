@@ -2,6 +2,8 @@ package com.example.jobtracker.security;
 
 
 import com.example.jobtracker.dto.LoginRequest;
+import com.example.jobtracker.dto.UserDto;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @Controller
 @RequestMapping("/auth")
@@ -45,34 +48,42 @@ public class AuthPageController {
             return;
         }
 
-        // ✅ 成功：签发新的 Access（推荐也 Rotate Refresh）
-        String username = jwtUtil.getUsername(refresh);
-        String newAccess = jwtUtil.generateAccessToken(reqs.getTenantId(),username);
-        ResponseCookie accessCookie = ResponseCookie.from("ACCESS", newAccess)
-                .httpOnly(true)
-                .secure(false) // 本地调试 false; 生产 true
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(15 * 60) // 15 分钟
-                .build();
-        res.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
 
-        // 可选：刷新 Refresh Token（Rotation）
-        String newRefresh = jwtUtil.generateRefreshToken(reqs.getTenantId(),username);
-        ResponseCookie refreshCookie = ResponseCookie.from("REFRESH", newRefresh)
-                .httpOnly(true)
-                .secure(false) // 本地调试 false; 生产 true
-                .sameSite("Lax")
-                .path("/api/auth/refresh")
-                .maxAge(7 * 24 * 3600) // 7 天
-                .build();
-        res.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+            // 1) 解析 Refresh，拿 username & tenantId（从 token claims）
+            final String username = jwtUtil.getUsername(refresh);
+            final UUID tenantId = jwtUtil.getTenantId(refresh); // ✅ 从 Refresh 的 claims 里拿
 
-        String to = (redirect != null && !redirect.isBlank()) ? redirect : "/";
-        res.sendRedirect(to);
-    }
+            // 2) 生成新的 Access（建议 15 min）
+            final String newAccess = jwtUtil.generateAccessToken(tenantId, username);
 
-    private String readCookie(HttpServletRequest req, String name) {
+            ResponseCookie accessCookie = ResponseCookie.from("ACCESS", newAccess)
+                    .httpOnly(true)
+                    .secure(false)        // 本地调试 false；生产请改为 true
+                    .sameSite("Lax")
+                    .path("/")            // 前端所有路径都能带上
+                    .maxAge(15 * 60)      // 15 分钟
+                    .build();
+            res.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+
+            // 3) 可选：Rotate Refresh（建议）
+            final String newRefresh = jwtUtil.generateRefreshToken(tenantId, username);
+
+            ResponseCookie refreshCookie = ResponseCookie.from("REFRESH", newRefresh)
+                    .httpOnly(true)
+                    .secure(false)        // 生产 true
+                    .sameSite("Lax")
+                    .path("/api/auth/refresh") // 仅在刷新接口请求时携带
+                    .maxAge(7 * 24 * 3600)     // 7 天
+                    .build();
+            res.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+            // 4) 重定向（可选）
+            String to = (redirect != null && !redirect.isBlank()) ? redirect : "/";
+            res.sendRedirect(to);
+
+        }
+
+        private String readCookie(HttpServletRequest req, String name) {
         if (req.getCookies() == null) return null;
         for (var c : req.getCookies()) {
             if (name.equals(c.getName())) return c.getValue();

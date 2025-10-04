@@ -71,65 +71,54 @@ public class TenantAdminService {
         this.clock = clock.orElse(Clock.systemUTC());
     }
 
-
-
-    // ======================
-    // 招待（邀请）创建
-    // ======================
-
     @Transactional
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
-    public  InviteInfoResp createInvite(UUID tenantId, CreateInviteReq req) {
-        // 0) 参数校验与标准化
-        Objects.requireNonNull(tenantId, "tenantId is required");
-        Objects.requireNonNull(req, "CreateInviteReq is required");
-
-        String email = normalizeEmail(req.email());
-        if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("邮箱无效");
-        }
-
-        int days = (req.daysToExpire() == null || req.daysToExpire() <= 0) ? 7 : req.daysToExpire();
-
-        // 1) 租户上下文校验（防跨租户）
-        ensureSameTenantOrSysAdmin(tenantId);
-
-        // 2) 幂等/冲突检查：同租户 + 同邮箱 有未使用且未过期的邀请则拒绝
+    public InviteInfoResp createInvite(UUID tenantId, CreateInviteReq req) {
+        // 0) 参数校验…
+        // 1) ensureSameTenantOrSysAdmin(tenantId);
+        // 2) 幂等检查…
         Instant now = Instant.now(clock);
-        boolean hasActiveInvite = invites.findAllByTenantIdAndEmail(tenantId, email).stream()
-                .anyMatch(inv -> inv.getUsedAt() == null && inv.getExpiresAt().isAfter(now));
-        if (hasActiveInvite) {
-            throw new IllegalArgumentException("该邮箱已存在有效邀请");
-        }
 
         Tenant tenant = tenants.findById(tenantId)
                 .orElseThrow(() -> new NoSuchElementException("Tenant not found"));
 
         TenantInvite invite = new TenantInvite();
-
         invite.setId(UUID.randomUUID());
         invite.setTenant(tenant);
-        invite.setEmail(email);
-
+        invite.setEmail(normalizeEmail(req.email()));
         Role role = (req.role() == null) ? Role.USER : req.role();
         invite.setRole(role);
-        invite.setToken(generateStrongToken(48)); // 48字节 → 64位左右的Base64URL串
-        invite.setExpiresAt(now.plus(Duration.ofDays(days)));
+        invite.setToken(generateStrongToken(48));
+        invite.setExpiresAt(now.plus(Duration.ofDays(
+                (req.daysToExpire() == null || req.daysToExpire() <= 0) ? 7 : req.daysToExpire()
+        )));
         invite.setCreatedAt(now);
 
-// ★ 方案A关键改动：不再强制 requireCurrentUserEntity()
-        //   能找到当前租户内的用户就设置；找不到（例如 SYSTEM_ADMIN 跨租户）则保持为 null
-        users.findByTenantIdAndUsername(tenantId, currentTenant.currentUsername())
-                .ifPresent(invite::setCreatedBy);
+        // ✅ 关键改动：一律从认证主体拿 userId，保证非空，避免跨租户取不到的问题
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalStateException("No authentication");
+        Object details = auth.getDetails();
+        if (!(details instanceof LoginUser lu) || lu.userId() == null) {
+            throw new IllegalStateException("Missing userId in authentication details");
+        }
+        // 如果实体是 UUID 列：
+        invite.setCreatedBy(lu.userId());
+        // 如果实体是字符串列：
+        // invite.setCreatedBy(lu.userId().toString());
 
         invites.save(invite);
 
-        log.info("[InviteCreated] tenant={}, email={}, role={}, token={}",
-                tenant.getName(), email, role, invite.getToken());
+        log.info("[InviteCreated] tenant={}, email={}, role={}, createdBy={}, token={}",
+                tenant.getName(), invite.getEmail(), role, lu.userId(), invite.getToken());
+
+   //final String frontBaseUrl = "https://localhost:8080";
+        String inviteToken =   invite.getToken();
 
         return new InviteInfoResp(invite.getEmail(), tenant.getName(), invite.getRole(),
-                invite.getExpiresAt(), false);
+                invite.getExpiresAt(), false,inviteToken);
     }
+
+
 
     // ======================
     // 招待预览
@@ -139,7 +128,9 @@ public class TenantAdminService {
     public InviteInfoResp previewInvite(String token) {
         TenantInvite i = invites.findByToken(requireToken(token))
                 .orElseThrow(() -> new NoSuchElementException("Invalid token"));
-        return new InviteInfoResp(i.getEmail(), i.getTenant().getName(), i.getRole(), i.getExpiresAt(), i.isUsed());
+        return new InviteInfoResp(i.getEmail(), i.getTenant().getName(), i.getRole(), i.getExpiresAt(), i.isUsed(),
+                 i.getToken());
+      //  "https://localhost:8080/signup?token=" +
     }
 
     // ======================
@@ -231,56 +222,60 @@ public class TenantAdminService {
 // ======================
     @PersistenceContext
     private EntityManager em;
+
     @Transactional
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
     public void removeMember(UUID tenantId, UUID userId) {
         Objects.requireNonNull(tenantId, "tenantId is required");
         Objects.requireNonNull(userId, "userId is required");
 
-        // 系统管理员放行；普通管理员必须同租户
+        // 1) 系统管理员放行；普通管理员必须同租户
         ensureSameTenantOrSysAdmin(tenantId);
 
-        // 目标用户（用现有 findById，再做一次租户断言）
+        // 2) 目标用户（再做一次租户断言）
         User target = users.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
         assertSameTenant(target.getTenant().getId(), tenantId);
 
-        // 解析当前操作者（userId 为空时回退用 tenantId+username 查）
-        LoginUser me = (LoginUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        UUID operatorId = me.userId();
+        // 3) 解析当前操作者（不要再从 principal 强转 LoginUser）
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        LoginUser actor = (auth != null && auth.getDetails() instanceof LoginUser lu) ? lu : null;
+
+        // 用户名用通用方法拿（兼容 UserDetails/JWT/Principal）
+        String operatorUsername = currentTenant.currentUsername();
+
+        // 优先用 details 里的 userId；若为空（如 SYSTEM_ADMIN 跨租户），回退用 (tenantId, username) 查
+        UUID operatorId = (actor != null) ? actor.userId() : null;
         if (operatorId == null) {
-            operatorId = users.findByTenantIdAndUsername(tenantId, me.username())
+            operatorId = users.findByTenantIdAndUsername(tenantId, operatorUsername)
                     .map(User::getId)
-                    .orElseThrow(() -> new IllegalStateException("当前用户不存在：" + me));
+                    .orElse(null); // 跨租户时可能为空，后面判空处理
         }
 
-        // 禁止自删（系统管理员除外）
-        if (operatorId.equals(target.getId()) && !isSystemAdmin()) {
+        // 4) 禁止自删（系统管理员除外）。跨租户时 operatorId 可能为 null，跳过该限制。
+        if (operatorId != null && operatorId.equals(target.getId()) && !isSystemAdmin()) {
             throw new IllegalStateException("不允许删除自己");
         }
 
-        // 禁止删除最后一个租户管理员
+        // 5) 禁止删除最后一个租户管理员
         if (target.getRole() == Role.TENANT_ADMIN && countAdmins(tenantId) <= 1) {
             throw new IllegalStateException("禁止删除最后一个租户管理员");
         }
-        // === 关键：先把子表里的外键置空（字段名按你实体来改：owner/assignee/createdBy 之一） ===
+
+        // 6) 清理子表外键（字段名按你的实体调整）
         em.createQuery("""
-            update JobApplication ja
-               set ja.user = null
-             where ja.user.id = :uid
-        """).setParameter("uid", target.getId())
-                .executeUpdate();
-        // —— 只做物理删除（A方案），不要再对 target 做任何 save/merge —— //
+        update JobApplication ja
+           set ja.user = null
+         where ja.user.id = :uid
+    """).setParameter("uid", target.getId()).executeUpdate();
+
+        // 7) 物理删除用户；不要再对 target 做任何 save/merge
         users.delete(target);
-        users.flush(); // 可留可去，保留便于尽早发现约束问题
+        users.flush(); // 可留，便于尽早暴露约束问题
 
-        log.info("[MemberRemoved] tenantId={}, userId={}", tenantId, userId);
-
-        // ❌ 删掉这些，否则会 500：
-        // target.setTenant(null);
-        // target.setRole(null);
-        // users.save(target);
+        log.info("[MemberRemoved] tenantId={}, userId={}, operator={}", tenantId, userId, operatorUsername);
     }
+
 
 
 

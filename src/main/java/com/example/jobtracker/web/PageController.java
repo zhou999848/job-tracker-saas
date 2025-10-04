@@ -493,8 +493,8 @@ private final LoginAttemptService loginAttemptService;
                           Model model,
                           LoginRequest req) {
 
-        // —— 1) 先做空白/格式处理（可选）
-        String uname = (username == null) ? "" : username.trim();
+// 1) 基本校验
+        String uname = username;
 
         // —— 2) 防爆破：检查是否已被锁定
         if (loginAttemptService.isBlocked(uname)) {  // ← 需要注入 LoginAttemptService
@@ -509,10 +509,10 @@ private final LoginAttemptService loginAttemptService;
 
             // —— 4) 登录成功：清除失败计数
             loginAttemptService.loginSucceeded(uname);
-
-            // ✅ 生成两种 token（你已有 JwtUtil，直接用）
-            String access = jwtUtil.generateAccessToken(req.getTenantId(),uname);   // 短期，比如 15 分钟
-            String refresh = jwtUtil.generateRefreshToken(req.getTenantId(),uname);  // 长期，比如 7 天
+// 1) 解析 Refresh，拿 username & tenantId（从 token claims）
+            UUID tenantId = currentTenant.requireTenantId(); // ✅ 从上下文拿当前租户 ID
+            String access = jwtUtil.generateAccessToken(tenantId,uname);   // 短期，比如 15 分钟
+            String refresh = jwtUtil.generateRefreshToken(tenantId,uname);  // 长期，比如 7 天
 
             // ✅ 本地 http 调试 secure(false)；部署到 HTTPS 再改 true
             boolean secure = request.isSecure(); // 本地一般是 false

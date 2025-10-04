@@ -36,9 +36,9 @@ public class TenantInvite {
     private Instant usedAt;
 
     // TenantInvite.java
-    @ManyToOne(optional = true, fetch = FetchType.LAZY)
+
     @JoinColumn(name = "created_by", nullable = true)  // 原来可能是 nullable=false
-    private User createdBy;
+    private UUID createdBy;
 
 
     @Column(name = "created_at", nullable = false)
@@ -102,11 +102,11 @@ public class TenantInvite {
         this.usedAt = usedAt;
     }
 
-    public User getCreatedBy() {
+    public UUID getCreatedBy() {
         return createdBy;
     }
 
-    public void setCreatedBy(User createdBy) {
+    public void setCreatedBy(UUID createdBy) {
         this.createdBy = createdBy;
     }
 

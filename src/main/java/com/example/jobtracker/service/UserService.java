@@ -11,6 +11,7 @@ import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 
 import com.example.jobtracker.security.JwtUtil;
+import io.micrometer.common.lang.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -35,46 +36,47 @@ public class UserService {
         this.encoder = encoder;
     }
     /**
-     * ✅ 推荐：安全注册（管理员/邀请链接传入 tenantId，不信任前端）
+     * ✅ 推荐：安全注册（管理员/邀请链接传入 tenantId，不信任前端传 name）
      * 规则：用户名在【租户内唯一】。
      * @return 新用户ID（字符串）
      */
     @Transactional
-    public String registerViaAdminOrInvite(UserDto dto, UUID tenantId) {
-        if (tenantId == null) {
-            throw new IllegalArgumentException("tenantId is required");
-        }
+    public String registerViaAdminOrInvite(UserDto dto, @Nullable UUID pathTenantId) {
         if (dto == null || dto.getUsername() == null || dto.getPassword() == null) {
             throw new IllegalArgumentException("username and password are required");
         }
 
-        // 统一化（可按需决定是否 toLowerCase）
-        String username = dto.getUsername().trim();
-        if (username.isEmpty()) {
-            throw new IllegalArgumentException("username cannot be blank");
-        }
-        // 可选：邮箱式用户名时建议小写化
-        // username = username.toLowerCase(Locale.ROOT);
+        // ① 解析 tenantId（路径参数 > DTO 兜底）
+        final UUID tenantId = (pathTenantId != null)
+                ? pathTenantId
+                : dto.getTenantId();
 
-        Tenant tenant = tenantRepo.findById(tenantId)
+        if (tenantId == null) {
+            throw new IllegalArgumentException("tenantId is required");
+        }
+
+        // ② 查租户（按 id）
+        final Tenant tenant = tenantRepo.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
-        // ✅ 关键：租户内判重
-        if (repo.existsByTenantIdAndUsername(tenant.getId(), username)) {
+        // ③ 规范化 username
+        final String username = dto.getUsername().trim();
+        if (username.isEmpty()) throw new IllegalArgumentException("username cannot be blank");
+
+        // ④ 租户内判重（按 id）
+        if (repo.existsByTenant_IdAndUsername(tenantId, username)) {
             throw new DuplicateUsernameException("Username already exists in this tenant");
         }
 
+        // ⑤ 创建用户（绑定租户）
         User user = new User();
         user.setUsername(username);
         user.setPassword(encoder.encode(dto.getPassword()));
-        user.setTenant(tenant);
-        // ✅ 关键：没有传 role 就给默认值
+        user.setTenant(tenant); // 或 tenantRepo.getReferenceById(tenantId)
         user.setRole(dto.getRole() != null ? Role.valueOf(dto.getRole()) : Role.USER);
 
-
-
         repo.save(user);
-        return user.getId().toString(); // ✅ 返回新用户ID
+        return user.getId().toString();
     }
 
     /** ⚠️ 仅限管理员/后台使用（保留兼容旧接口，不推荐外部调用） */
@@ -83,7 +85,7 @@ public class UserService {
         if (dto == null || dto.getTenantId() == null) {
             throw new IllegalArgumentException("tenantId is required");
         }
-        registerViaAdminOrInvite(dto, dto.getTenantId());
+        registerViaAdminOrInvite(dto, null); // 兜底走 dto.tenantId
     }
 
 

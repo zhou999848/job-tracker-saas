@@ -24,6 +24,7 @@ private String email;
     private Tenant tenant;
     // ✅ 新增字段：角色
     // 2) User 实体加角色（字符串存储最直观）
+    private String tenantName;
     @Enumerated(EnumType.STRING)
     private Role role;
 private Instant createdAt;
@@ -74,4 +75,8 @@ private Instant createdAt;
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
-}
+    public String getTenantName() {
+        return tenantName;
+    }
+    public void setTenantName(String tenantName) { this.tenantName = tenantName;
+}}

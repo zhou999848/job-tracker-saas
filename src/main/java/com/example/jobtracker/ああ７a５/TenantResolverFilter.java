@@ -1,4 +1,3 @@
-
 // src/main/java/com/example/jobtracker/ああ７a５/TenantResolverFilter.java
 package com.example.jobtracker.ああ７a５;
 
@@ -18,7 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE) // 保证在 Spring Security/JWT 之前
+@Order(Ordered.HIGHEST_PRECEDENCE) // 确保在 Spring Security/JWT 之前执行
 public class TenantResolverFilter extends OncePerRequestFilter {
 
     private static final AntPathMatcher APM = new AntPathMatcher();
@@ -26,17 +25,25 @@ public class TenantResolverFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
-        // 统一化多斜杠，避免 StrictHttpFirewall 因 "//" 拦截
+        // 统一多斜杠，避免 StrictHttpFirewall 因 "//" 拦截
         String uri = req.getRequestURI().replaceAll("/{2,}", "/");
 
         try {
-            tryExtractFromPath(uri);
+            // 1) 先尝试从路径 /api/tenants/{tenantId}/** 提取
+            tryExtractTenantIdFromPath(uri);
 
-            // （可选兜底）从 Header 读
-            if (TenantContext.get() == null) {
+            // 2) 再尝试从 Header 读取（登录等无路径参数的场景）
+            if (TenantContext.getId() == null) {
                 String h = req.getHeader("X-Tenant-Id");
                 if (h != null && !h.isBlank()) {
-                    TenantContext.set(UUID.fromString(h.trim()));
+                    try {
+                        TenantContext.set(UUID.fromString(h.trim()));
+                    } catch (IllegalArgumentException e) {
+                        res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                        res.setContentType("text/plain;charset=UTF-8");
+                        res.getWriter().write("Invalid X-Tenant-Id");
+                        return;
+                    }
                 }
             }
 
@@ -47,24 +54,24 @@ public class TenantResolverFilter extends OncePerRequestFilter {
         }
     }
 
-    private void tryExtractFromPath(String uri) {
-        // 按实际路径增删 pattern；支持 /api/tenants/{id} 及其子路径
+    private void tryExtractTenantIdFromPath(String uri) {
+        // 按实际路由增删 pattern；支持 /api/tenants/{tenantId} 及其子路径
         String[] patterns = {
                 "/api/tenants/{tenantId}",
                 "/api/tenants/{tenantId}/**",
-                "/api/tenants/{id}",
-                "/api/tenants/{id}/**",
-                // 如果你的应用部署在子上下文，考虑 "/**/api/tenants/{tenantId}/**"
+                // 如果应用部署在子上下文，可加 "/**/api/tenants/{tenantId}/**"
         };
         for (String p : patterns) {
             if (APM.match(p, uri)) {
-                Map<String,String> vars = APM.extractUriTemplateVariables(p, uri);
-                String raw = vars.getOrDefault("tenantId", vars.get("id"));
+                Map<String, String> vars = APM.extractUriTemplateVariables(p, uri);
+                String raw = vars.get("tenantId");
                 if (raw != null && !raw.isBlank()) {
-                    TenantContext.set(UUID.fromString(raw));
+                    UUID tid = UUID.fromString(raw);
+                    TenantContext.set(tid);
                 }
                 return;
             }
         }
     }
 }
+

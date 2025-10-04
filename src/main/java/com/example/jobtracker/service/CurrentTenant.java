@@ -1,15 +1,17 @@
 
+// src/main/java/com/example/jobtracker/service/CurrentTenant.java
 package com.example.jobtracker.service;
 
 import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.repository.TenantRepository;
-import com.example.jobtracker.security.LoginUser; // ← 若包名不同请改
+import com.example.jobtracker.security.LoginUser;
+import com.example.jobtracker.tenant.TenantContext;
 import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.security.Principal;
 import java.util.Map;
@@ -25,50 +27,49 @@ public class CurrentTenant {
         this.tenantRepo = tenantRepo;
     }
 
-    /** 若取不到则抛异常（多数业务场景用这个） */
+    /** 强依赖场景：必须存在 tenantId（来自 ThreadLocal 单一真相） */
     public UUID requireTenantId() {
-        return optionalTenantId()
-                .orElseThrow(() -> new IllegalStateException("Tenant id not found in authentication"));
+        return TenantContext.requireTenantIdFromRequest();
     }
 
-    /** 可选获取（某些非强依赖场景可用） */
+    /** 弱依赖场景：优先 ThreadLocal；否则再尝试历史兼容来源 */
     public Optional<UUID> optionalTenantId() {
+        // ① ThreadLocal（推荐 & 单一真相）
+        UUID fromCtx = TenantContext.getId();
+        if (fromCtx != null) return Optional.of(fromCtx);
+
+        // ② 兼容历史：尝试从 Authentication/JWT/details/MDC 读取（尽量早迁移移除）
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) return Optional.empty();
 
-        // ① 自定义 Principal：LoginUser（方式1，推荐）
         Object principal = auth.getPrincipal();
         if (principal instanceof LoginUser lu && lu.tenantId() != null) {
             return Optional.of(lu.tenantId());
         }
 
-        // ② Resource Server 模式：JWT 的 claim
         if (auth instanceof JwtAuthenticationToken jat) {
-            Object claim = jat.getToken().getClaim("tenant");
+            Object claim = jat.getToken().getClaim("tenantId"); // 统一采用 tenantId
+            if (claim == null) claim = jat.getToken().getClaim("tenant"); // 兼容旧 key
             if (claim != null) {
-                try {
-                    return Optional.of(UUID.fromString(claim.toString()));
-                } catch (IllegalArgumentException ignore) { /* fallthrough */ }
+                try { return Optional.of(UUID.fromString(claim.toString())); }
+                catch (IllegalArgumentException ignore) {}
             }
         }
 
-        // ③ Authentication details 中的 Map（若你把 tenantId 放在 details 里）
         Object details = auth.getDetails();
         if (details instanceof Map<?, ?> map) {
             Object tid = map.get("tenantId");
             if (tid != null) {
-                try {
-                    return Optional.of(UUID.fromString(tid.toString()));
-                } catch (IllegalArgumentException ignore) { /* fallthrough */ }
+                try { return Optional.of(UUID.fromString(tid.toString())); }
+                catch (IllegalArgumentException ignore) {}
             }
         }
 
-        // ④ 兜底：从 MDC 读取（如果你的过滤器里 put 过）
-        String mdcTid = MDC.get("tenant");
-        if (mdcTid != null && !mdcTid.isBlank()) {
-            try {
-                return Optional.of(UUID.fromString(mdcTid));
-            } catch (IllegalArgumentException ignore) { /* fallthrough */ }
+        String mdcTid = MDC.get("tenantId"); // 统一 key
+        if (!StringUtils.hasText(mdcTid)) mdcTid = MDC.get("tenant"); // 兼容旧 key
+        if (StringUtils.hasText(mdcTid)) {
+            try { return Optional.of(UUID.fromString(mdcTid)); }
+            catch (IllegalArgumentException ignore) {}
         }
 
         return Optional.empty();
@@ -86,23 +87,15 @@ public class CurrentTenant {
         if (auth == null) throw new IllegalStateException("No authentication");
 
         Object p = auth.getPrincipal();
-
-        // 自定义 Principal（方式1，推荐）
-        if (p instanceof LoginUser lu && lu.username() != null && !lu.username().isBlank()) {
+        if (p instanceof LoginUser lu && StringUtils.hasText(lu.username())) {
             return lu.username();
         }
-        // Spring Security 的 UserDetails
-        if (p instanceof UserDetails ud) {
+        if (p instanceof org.springframework.security.core.userdetails.UserDetails ud) {
             return ud.getUsername();
         }
-        // 通用 Principal
         if (p instanceof Principal pr) {
             return pr.getName();
         }
-        // 兜底
         return auth.getName();
     }
 }
-
-
-

@@ -1,59 +1,56 @@
+
 package com.example.jobtracker.ああ７a５;
-
-
 
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.security.LoginUser;
 import com.example.jobtracker.tenant.TenantContext;
+import com.example.jobtracker.domain.User;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
+@Component
 public class SecurityUtils {
 
-    // 获取当前登录用户的 Authentication
-    public static Authentication getAuthentication() {
+    private final UserRepository userRepository;
+
+    public SecurityUtils(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    /** 当前认证对象 */
+    public Authentication getAuthentication() {
         return SecurityContextHolder.getContext().getAuthentication();
     }
 
-    // 获取当前用户名（JWT 登录时就是 username）
-    public static String getCurrentUsername() {
+    /** 当前用户名（若有） */
+    public String getCurrentUsername() {
         Authentication auth = getAuthentication();
         if (auth == null || auth.getPrincipal() == null) return null;
-        Object principal = auth.getPrincipal();
-        if (principal instanceof UserDetails userDetails) {
-            return userDetails.getUsername();
-        }
-        return principal.toString();
+        Object p = auth.getPrincipal();
+        if (p instanceof UserDetails ud) return ud.getUsername();
+        return p.toString();
     }
 
-
-    private static UserRepository userRepository; // 静态注入一次即可
-
-    public SecurityUtils(UserRepository repo) {
-        SecurityUtils.userRepository = repo;
-    }
-    public static UUID currentUserId() {
-        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+    /** 解析当前登录用户ID；优先从 LoginUser，退化到 (tenantId, username) 查库 */
+    public UUID currentUserId() {
+        Authentication a = getAuthentication();
         if (a == null || !a.isAuthenticated() || a instanceof AnonymousAuthenticationToken) {
             throw new IllegalStateException("未登录");
         }
 
         Object principal = a.getPrincipal();
 
-        // 1) 你的自定义 principal（例如包含 userId 的 LoginUser 或 UserDetailsImpl）
-        if (principal instanceof LoginUser lu) {
+        // 1) 你已有的自定义 principal（包含 userId）
+        if (principal instanceof LoginUser lu && lu.getUserId() != null) {
             return lu.getUserId();
         }
-        // 如果你项目里是 UserDetailsImpl，放开下面这个分支
-        if (principal instanceof UserDetailsImpl udi) {
-            return udi.getId();
-        }
 
-        // 2) 退化：只有 username（UserDetails 或 String），就 (tenantId, username) 查一次库拿 id
+        // 2) 退化：只有 username，则 (tenantId, username) 查一次库拿 id
         String username = null;
         if (principal instanceof UserDetails ud) {
             username = ud.getUsername();
@@ -64,7 +61,7 @@ public class SecurityUtils {
         if (username != null) {
             UUID tenantId = TenantContext.requireTenantIdFromRequest();
             return userRepository.findByTenantIdAndUsername(tenantId, username)
-                    .map(user -> user.getId())
+                    .map(User::getId)
                     .orElseThrow(() -> new IllegalStateException("未登录：无法解析用户ID"));
         }
 
@@ -72,8 +69,9 @@ public class SecurityUtils {
         throw new IllegalStateException("未登录：不支持的 principal 类型=" + principal.getClass().getName());
     }
 
-    public static boolean isSystemAdmin() {
-        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+    /** 是否系统管理员 */
+    public boolean isSystemAdmin() {
+        Authentication a = getAuthentication();
         return a != null && a.getAuthorities().stream()
                 .anyMatch(ga -> "ROLE_SYSTEM_ADMIN".equals(ga.getAuthority()));
     }

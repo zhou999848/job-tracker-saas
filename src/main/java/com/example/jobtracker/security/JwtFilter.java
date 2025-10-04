@@ -1,6 +1,8 @@
 package com.example.jobtracker.security;
 
+import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.domain.User;
+import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
@@ -9,6 +11,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.jboss.logging.MDC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -34,10 +37,12 @@ public class JwtFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final MyUserDetailsService userDetailsService;
+    private final TenantRepository tenantRepo;
 
     public JwtFilter(JwtUtil jwtUtil,
                      MyUserDetailsService userDetailsService,
-                     UserRepository userRepository) {
+                     UserRepository userRepository,TenantRepository tenantRepo) {
+        this.tenantRepo = tenantRepo;
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
@@ -59,95 +64,108 @@ public class JwtFilter extends OncePerRequestFilter {
                 || path.equals("/favicon.ico");
     }
 
-
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        UUID ctxTenantId = null;
+        UUID ctxTenantId = null; // 只在 finally 用于判断是否需要清理 ThreadLocal
 
         try {
+            // 仅当当前还没有认证时才尝试用 JWT 建立认证
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 String token = resolveAccessToken(request);
                 if (token != null) {
                     if (!jwtUtil.validateAccessTokenStrict(token)) {
+                        // token 非法/过期：清理并保持未认证状态
                         clearAccessCookie(response, request.isSecure());
                         clearRefreshCookie(response, request.isSecure());
                         invalidateSessionIfPresent(request);
                         SecurityContextHolder.clearContext();
                     } else {
-                        String username = jwtUtil.getUsername(token);
-                        UUID tenantId = jwtUtil.getTenantId(token);
-                        Instant tokenIat = jwtUtil.getIssuedAt(token);
+                        final String username = jwtUtil.getUsername(token);
+                        final UUID tenantId = jwtUtil.getTenantId(token);
+                        final Instant tokenIat = jwtUtil.getIssuedAt(token);
 
-                        Optional<User> optUser = userRepository.findByTenantIdAndUsername(tenantId, username);
-                        if (optUser.isEmpty()) {
+                        if (!StringUtils.hasText(username) || tenantId == null) {
+                            // 缺关键字段，按无效处理
                             clearAccessCookie(response, request.isSecure());
                             clearRefreshCookie(response, request.isSecure());
                             invalidateSessionIfPresent(request);
                             SecurityContextHolder.clearContext();
                         } else {
-                            User user = optUser.get();
-
-                            Instant pwdAt = user.getPasswordChangedAt();
-                            boolean invalidByPwdChange =
-                                    (pwdAt != null) && (tokenIat == null || !tokenIat.isAfter(pwdAt.plus(IAT_SKEW)));
-
-                            if (invalidByPwdChange) {
+                            // 校验用户是否存在于该租户
+                            Optional<User> optUser = userRepository.findByTenantIdAndUsername(tenantId, username);
+                            if (optUser.isEmpty()) {
                                 clearAccessCookie(response, request.isSecure());
                                 clearRefreshCookie(response, request.isSecure());
                                 invalidateSessionIfPresent(request);
                                 SecurityContextHolder.clearContext();
                             } else {
-                                // ★★★ 在进入控制器之前设置 ThreadLocal（单一真相）
-                                ctxTenantId = tenantId;
-                                com.example.jobtracker.tenant.TenantContext.set(tenantId);
-                                // （可选）Request Attribute，仅作调试/兼容
-                                request.setAttribute(com.example.jobtracker.tenant.TenantContext.REQUEST_ATTR, tenantId);
+                                User user = optUser.get();
 
-                                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                                // 如果用户修改过密码且时间晚于 token 的 iat，则判定 token 失效
+                                Instant pwdAt = user.getPasswordChangedAt();
+                                boolean invalidByPwdChange =
+                                        (pwdAt != null) && (tokenIat == null || !tokenIat.isAfter(pwdAt.plus(IAT_SKEW)));
 
-                                LoginUser principal = new LoginUser(
-                                        user.getId(),
-                                        user.getUsername(),
-                                        tenantId
-                                );
+                                if (invalidByPwdChange) {
+                                    clearAccessCookie(response, request.isSecure());
+                                    clearRefreshCookie(response, request.isSecure());
+                                    invalidateSessionIfPresent(request);
+                                    SecurityContextHolder.clearContext();
+                                } else {
+                                    // ★★★ 单一真相：在进入控制器前把 tenantId 放入 ThreadLocal + MDC
+                                    TenantContext.set(tenantId);
+                                    MDC.put("tenantId", tenantId.toString());
+                                    request.setAttribute("tenantId", tenantId);
 
-                                org.slf4j.LoggerFactory.getLogger(JwtFilter.class).info(
-                                        "[AUTH] user={}, tenant={}, authorities={}",
-                                        username, tenantId, userDetails.getAuthorities()
-                                );
+                                    // 再加载用户详情（若 UserDetailsService 依赖 TenantContext）
+                                    var userDetails = userDetailsService.loadUserByUsername(username);
 
-                                UsernamePasswordAuthenticationToken auth =
-                                        new UsernamePasswordAuthenticationToken(
-                                                principal, null, userDetails.getAuthorities());
-                                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                                SecurityContextHolder.getContext().setAuthentication(auth);
+                                    // 使用 UserDetails 作为 principal，保证 getName() == username
+                                    var auth = new UsernamePasswordAuthenticationToken(
+                                            userDetails,
+                                            null,
+                                            userDetails.getAuthorities()
+                                    );
+                                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                                    // 将包含 userId/username/tenantId 的 LoginUser 放在 details，便于业务层扩展读取
+                                    var principal = new LoginUser(user.getId(), user.getUsername(), tenantId);
+                                    // 追加在 details（不覆盖 Spring 的基础 details，可合并或封装为自定义 details 对象）
+                                    // 这里简单起见，直接覆盖为自定义对象：
+                                    auth.setDetails(principal);
+
+                                    SecurityContextHolder.getContext().setAuthentication(auth);
+
+                                    log.info("[AUTH] user={}, tenant={}, authorities={}",
+                                            username, tenantId, userDetails.getAuthorities());
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // ★★★ 先放行到后续过滤器/控制器
+            // 放行后续过滤器/控制器
             chain.doFilter(request, response);
 
         } catch (Exception e) {
-            // 认证阶段的异常：降级，仍然放行到后续异常处理链
+            // 认证阶段异常：降级并交由全局异常处理
             log.error("[JWT] unexpected auth error", e);
             clearAccessCookie(response, request.isSecure());
             clearRefreshCookie(response, request.isSecure());
             invalidateSessionIfPresent(request);
             SecurityContextHolder.clearContext();
-            throw e; // 交给上层统一错误处理（或不抛，看你策略）
+            throw e;
         } finally {
-            // ★★★ 确保在请求结束后清理 ThreadLocal，避免线程复用污染
+            // ★★★ 仅当本过滤器实际设置过 ThreadLocal 时才清理，避免误清理其他地方设置的上下文
             if (ctxTenantId != null) {
-                com.example.jobtracker.tenant.TenantContext.clear();
+                TenantContext.clear();
             }
-            // 不必强制在这里清 SecurityContextHolder，Spring Security 会在链路末尾处理
+            // SecurityContextHolder 的清理交给 Spring Security 链路末尾
         }
     }
 

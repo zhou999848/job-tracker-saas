@@ -1,6 +1,7 @@
 package com.example.jobtracker.web;
 
 import com.example.jobtracker.service.CurrentTenant;
+import com.example.jobtracker.tenant.TenantContext;
 import org.springframework.core.io.UrlResource;
 import org.springframework.ui.Model;
 import com.example.jobtracker.domain.User;

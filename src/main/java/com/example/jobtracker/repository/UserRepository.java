@@ -34,4 +34,16 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findAllByTenantId(UUID tenantId);
 
     long countByTenantIdAndRole(UUID tenantId, Role role);
+
+    boolean existsByTenant_IdAndUsername(UUID tenantId, String username);
+
+
+    Optional<User> findByTenant_NameAndUsername(String tenantName, String username);
+    long countByTenant_Name(String tenantName);
+    long countByTenant_NameAndRole(String tenantName, Role role);
+
+    Optional<User> findByTenant_IdAndUsername(UUID tenantId, String username);
+    Optional<User> findByIdAndTenant_Id(UUID userId, UUID tenantId);
+    long countByTenant_IdAndRole(UUID tenantId, Role role);
+    long countByTenant_Id(UUID tenantId);
 }

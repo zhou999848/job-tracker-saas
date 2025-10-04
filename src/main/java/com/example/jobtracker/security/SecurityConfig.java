@@ -1,4 +1,5 @@
 package com.example.jobtracker.security;
+import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.CommandLineRunner;
@@ -91,8 +92,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtFilter jwtFilter(JwtUtil jwtUtil, MyUserDetailsService uds, UserRepository userRepo) {
-        return new JwtFilter(jwtUtil, uds, userRepo);
+    public JwtFilter jwtFilter(JwtUtil jwtUtil, MyUserDetailsService uds, UserRepository userRepo, TenantRepository tenantRepo) {
+        return new JwtFilter(jwtUtil, uds, userRepo,tenantRepo);
     }
 
     @Bean

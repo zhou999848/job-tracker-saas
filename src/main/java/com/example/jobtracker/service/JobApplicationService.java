@@ -7,14 +7,18 @@ import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.UserRepository;
 
+import com.example.jobtracker.security.LoginUser;
+import com.example.jobtracker.tenant.TenantContext;
+import com.example.jobtracker.ああ７a５.SecurityUtils;
 import com.example.jobtracker.ああ７a５.TenantGuard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-
+import org.springframework.security.core.Authentication;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -50,25 +54,53 @@ public class JobApplicationService {
 
     @Transactional
     public void save(JobApplicationDto dto) {
-        UUID tenantId = currentTenant.requireTenantId(); // 你已经在全项目统一用这个取租户ID ✅
-        String username = currentTenant.currentUsername(); // ← 一定是 String，而不是 principal.toString()
-        // ✅ 写前统一拦截（跨租户 & SUSPENDED）
-        guard.requireWritableTenant(tenantId);
-        User user = userRepository.findByTenantIdAndUsername(tenantId, username).orElseThrow(() -> new IllegalStateException(
-                "User not found under tenant. username=" + username + ", tenant=" + tenantId));
+        if (dto == null) {
+            throw new IllegalArgumentException("JobApplicationDto is null");
+        }
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        UUID tenantId = TenantContext.requireTenantIdFromRequest();
+
+        guard.requireWritableTenant(tenantId);
+
+// 优先用 userId 精确查，失败再兜底用 username
+        User user = null;
+        if (auth != null) {
+            Object principal = auth.getPrincipal();
+            if (principal instanceof LoginUser lu && lu.getUserId() != null) {
+                user = userRepository.findByIdAndTenant_Id(lu.getUserId(), tenantId)
+                        .orElse(null);
+            } else if (principal instanceof UserDetails ud) {
+                user = userRepository.findByTenant_IdAndUsername(tenantId, ud.getUsername())
+                        .orElse(null);
+            } else if (principal instanceof java.security.Principal p) {
+                user = userRepository.findByTenant_IdAndUsername(tenantId, p.getName())
+                        .orElse(null);
+            } else if (auth.getName() != null) {
+                user = userRepository.findByTenant_IdAndUsername(tenantId, auth.getName())
+                        .orElse(null);
+            }
+        }
+
+        if (user == null) {
+            throw new IllegalStateException(
+                    "User not found under tenant. principal=" + auth.getPrincipal() + ", tenantId=" + tenantId);
+        }
+
+        // 组装实体
         JobApplication job = new JobApplication();
-        job.setId(dto.getId());                  // 若是新建可不设，由 DB 生成
+        job.setId(dto.getId());              // 新建可不设，由 DB 生成
         job.setCompany(dto.getCompany());
         job.setPosition(dto.getPosition());
         job.setStatus(dto.getStatus());
         job.setAppliedDate(dto.getAppliedDate());
 
-        job.setUser(user);                       // 归属用户
-        job.setTenant(user.getTenant());         // 归属租户（与用户一致，或：tenantRepo.getRef(tenantId)）
+        job.setUser(user);                   // 归属用户
+        job.setTenant(user.getTenant());     // 归属租户（确保与用户一致；或用 tenantRepo.getReferenceById(tenantId)）
 
         jobRepository.save(job);
     }
+
 
     @Transactional(readOnly = true)
     public List<JobApplicationDto> findAll() {
