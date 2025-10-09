@@ -2,6 +2,7 @@ package com.example.jobtracker.security;
 import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.MessageSource;
@@ -42,15 +43,24 @@ import java.nio.charset.StandardCharsets;
 public class SecurityConfig {
 
     @Bean
-    public org.springframework.security.core.session.SessionRegistry sessionRegistry() {
-        return new org.springframework.security.core.session.SessionRegistryImpl();
+    public JwtUtil jwtUtil(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.access-seconds:900}") long accessExpSeconds,
+            @Value("${jwt.refresh-seconds:604800}") long refreshExpSeconds,
+            @Value("${jwt.clockskew-seconds:60}") long clockSkewSeconds,
+            UserRepository userRepo
+    ) {
+        return new JwtUtil(secret, accessExpSeconds, refreshExpSeconds, clockSkewSeconds, userRepo);
+    }
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
     }
 
+    // 若使用最大会话数/踢人等，需要这个监听器同步session创建/销毁事件
     @Bean
-    public static org.springframework.boot.web.servlet.ServletListenerRegistrationBean<
-            org.springframework.security.web.session.HttpSessionEventPublisher> httpSessionEventPublisher() {
-        return new org.springframework.boot.web.servlet.ServletListenerRegistrationBean<>(
-                new org.springframework.security.web.session.HttpSessionEventPublisher());
+    public ServletListenerRegistrationBean<HttpSessionEventPublisher> httpSessionEventPublisher() {
+        return new ServletListenerRegistrationBean<>(new HttpSessionEventPublisher());
     }
 
 // SecurityConfig

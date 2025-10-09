@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://host.docker.internal:5432/jobtracker   # 改成你的库名/端口
+    username: your_user
+    password: your_pass
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+security:
+  jwt:
+    enabled: false

@@ -1,8 +1,8 @@
-name: Java CI with Maven
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ] # 需要所有分支都触发的话，改为 ["**"]
   pull_request:
     branches: [ main ]
 
@@ -11,14 +11,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '21'
-          distribution: 'temurin'
+          cache: maven # 启用 Maven 依赖缓存
 
-      - name: Build with Maven
-        run: mvn -B package --file  pom.xml
+      # 先编译，再运行测试（不跳过），生成 Jacoco 报告
+      - name: Build & Test
+        run: mvn -q -DskipTests=false test
+
+      # 无论成功或失败，都把 Jacoco HTML 报告保存为构件，便于下载查看
+      - name: Upload Jacoco report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-site
+          path: target/site/jacoco/
+
+      # 测试通过后再打包（可选）
+      - name: Package
+        run: mvn -q -DskipTests package
+
+      # 失败时把 surefire 报告也上传，便于排错（可选但推荐）
+      - name: Upload surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
