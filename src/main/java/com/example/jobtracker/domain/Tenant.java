@@ -1,5 +1,5 @@
-package com.example.jobtracker.domain;
 
+package com.example.jobtracker.domain;
 import com.example.jobtracker.ああ７a５.TenantStatus;
 import jakarta.persistence.*;
 
@@ -7,6 +7,18 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 
 @Entity
 @Table(name = "tenants")

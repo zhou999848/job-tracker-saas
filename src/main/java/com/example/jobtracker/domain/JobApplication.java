@@ -1,12 +1,20 @@
 package com.example.jobtracker.domain;
 
+
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.*;
+import java.time.Instant;
 import java.util.UUID;
-
-
-
 import java.time.LocalDate;//this is for date handling
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+
+
+
 @Entity
 @Table(name = "job-application")           // ✅ 下划线命名
 public class JobApplication {
@@ -30,6 +38,17 @@ public class JobApplication {
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnore                               // ✅ API 出口避免序列化 user（防递归/懒加载）
     private User user;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt=Instant.now();
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
 
 
     public Tenant getTenant() {return tenant;}

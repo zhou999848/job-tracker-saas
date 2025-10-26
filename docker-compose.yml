@@ -24,5 +24,34 @@ services:
     ports:
       - "5050:80"  # 本地5050端口 → 容器中的80端口（网页）
 
+  # --- MinIO 文件存储 ---
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API 端口
+      - "9001:9001"   # 控制台端口
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./minio-data:/data
+
+  # --- MinIO 客户端（mc）---
+  mc:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 2;
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb -p local/jobtracker || true;
+      mc anonymous set none local/jobtracker;
+      echo 'MinIO ready';
+      tail -f /dev/null
+      "
+
 volumes:
   pgdata:  # 命名卷，数据库文件存在本地
