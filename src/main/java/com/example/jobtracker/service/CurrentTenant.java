@@ -6,9 +6,13 @@ import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.security.LoginUser;
 import com.example.jobtracker.tenant.TenantContext;
+
 import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -98,4 +102,56 @@ public class CurrentTenant {
         }
         return auth.getName();
     }
+
+
+
+    public UUID requireUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new IllegalStateException("No authenticated user");
+        }
+
+        Object principal = auth.getPrincipal();
+        String idStr = null;
+
+        if (principal instanceof Jwt) {
+            Jwt jwt = (Jwt) principal;
+            idStr = jwt.getClaimAsString("user_id"); // 若使用其他 claim，请改为对应名称
+            if (idStr == null) idStr = jwt.getSubject();
+        } else if (principal instanceof UserDetails) {
+            idStr = ((UserDetails) principal).getUsername();
+        } else if (principal instanceof String) {
+            idStr = (String) principal;
+        }
+
+        if (idStr == null) {
+            throw new IllegalStateException("Cannot resolve user id from authentication principal");
+        }
+
+        try {
+            return UUID.fromString(idStr);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("User id is not a valid UUID: " + idStr, e);
+        }
+    }
+
+    public boolean isSystemAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+
+        for (GrantedAuthority ga : auth.getAuthorities()) {
+            String a = ga.getAuthority();
+            if ("ROLE_SYSTEM_ADMIN".equals(a) || "SYSTEM_ADMIN".equals(a)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    // CurrentTenant.java 新增
+    public Optional<UUID> optionalUserId() {
+        try { return Optional.of(requireUserId()); } catch (Exception e) { return Optional.empty(); }
+    }
+
 }
+
+

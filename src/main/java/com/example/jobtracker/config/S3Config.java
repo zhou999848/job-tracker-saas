@@ -18,6 +18,7 @@ import java.net.URI;
 @Configuration
 public class S3Config {
 
+    // S3Config.java
     @Bean
     public S3Client s3Client(
             @Value("${file.s3.endpoint}") String endpoint,
@@ -31,7 +32,7 @@ public class S3Config {
                 .region(Region.of(region))
                 .endpointOverride(URI.create(endpoint))
                 .serviceConfiguration(S3Configuration.builder()
-                        .pathStyleAccessEnabled(pathStyle)  // MinIO 必须
+                        .pathStyleAccessEnabled(pathStyle)   // ✅ 强制路径风格
                         .build())
                 .build();
     }
@@ -41,12 +42,17 @@ public class S3Config {
             @Value("${file.s3.endpoint}") String endpoint,
             @Value("${file.s3.region}") String region,
             @Value("${file.s3.accessKey}") String ak,
-            @Value("${file.s3.secretKey}") String sk
+            @Value("${file.s3.secretKey}") String sk,
+            @Value("${file.s3.pathStyle:true}") boolean pathStyle
     ) {
         return S3Presigner.builder()
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ak, sk)))
                 .region(Region.of(region))
                 .endpointOverride(URI.create(endpoint))
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(pathStyle)   // ✅ Presigner 同样需要
+                        .build())
                 .build();
     }
+
 }
