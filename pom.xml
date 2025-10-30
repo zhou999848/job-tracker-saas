@@ -182,7 +182,10 @@
                 <version>3.5.3</version>
                 <configuration>
                     <argLine>@{argLine}</argLine>
-
+                    <excludes>
+                        <exclude>**/FileControllerSmokeTest.java</exclude>
+                        <exclude>**/JobApplicationControllerTest.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
 

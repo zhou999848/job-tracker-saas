@@ -20,8 +20,11 @@ jobs:
           java-version: "21"
           cache: maven
 
+
+
+
       - name: Build & Test
-        run: mvn -B -DskipTests=false test
+        run: mvn -q -Dspring.profiles.active=test -DskipTests=false test
 
       - name: Upload Jacoco report
         if: always()
@@ -36,3 +39,23 @@ jobs:
         with:
           name: surefire-reports
           path: target/surefire-reports/
+
+
+
+
+      - name: Show surefire summary
+        if: failure()
+        run: |
+          echo "==== FAILURES ===="
+          if [ -d target/surefire-reports ]; then
+            grep -R "<<< FAILURE" -n target/surefire-reports || true
+            grep -R "Caused by" -n target/surefire-reports || true
+          fi
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports
+

@@ -10,3 +10,18 @@ spring:
 security:
   jwt:
     enabled: false
+
+# 仅用于测试环境，Client 只在真正调用时才会连接，不会因没起 MinIO 直接报错
+file:
+  s3:
+    endpoint: http://localhost:9000
+    region: us-east-1
+    accessKey: minioadmin
+    secretKey: minioadmin
+    bucket: jobtracker
+    pathStyle: true
+    presignExpireSeconds: 300
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # 你用 Flyway 就删掉这行

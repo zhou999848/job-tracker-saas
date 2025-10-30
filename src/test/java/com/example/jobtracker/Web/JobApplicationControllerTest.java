@@ -1,3 +1,4 @@
+
 package com.example.jobtracker.Web;
 
 import com.example.jobtracker.service.JobApplicationService;
@@ -5,12 +6,10 @@ import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.web.JobApplicationController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
@@ -28,22 +27,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 最小可运行版本：不加载安全过滤器；把 Service 打桩。
  */
 @WebMvcTest(controllers = JobApplicationController.class)
-@Import(JobApplicationService.class)
 @AutoConfigureMockMvc(addFilters = false)
 class JobApplicationControllerTest {
 
-    @Autowired
-    MockMvc mvc;
+    @Autowired MockMvc mvc;
 
-    @Mock
+    @MockBean  // ✅ 改成 MockBean，让 Spring 容器能装配控制器
     JobApplicationService service;
 
     @Test
     @DisplayName("GET /jobs/search 返回分页 JSON")
     void search_returnsPagedJson() throws Exception {
-        // 你的 DTO 如果是 record/有构造器，请按实际构造；这里给一个最小可用例子
-        JobApplicationDto dto = new JobApplicationDto(
-        );
+        // 构造最小 DTO（按你的实际字段改）
+        JobApplicationDto dto = new JobApplicationDto();
         var page = new PageImpl<>(List.of(dto), PageRequest.of(0, 5), 1);
 
         when(service.searchByCompany("abc", anyInt(), anyInt())).thenReturn(page);
@@ -54,11 +50,7 @@ class JobApplicationControllerTest {
                         .param("size", "5"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
-        // 如需更严格断言：.andExpect(jsonPath("$.content[0].company").value("ABC Inc"))
     }
 }
-
-
-
 
 
