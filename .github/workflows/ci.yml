@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,12 +21,15 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # ✅ 可选但强烈建议：打印 Docker 环境，便于 Testcontainers 排障
+      - name: Verify Docker environment
+        run: docker info
 
-
-
+      # ✅ 运行单元 + 集成测试（含 Testcontainers: PostgreSQL/MinIO）
       - name: Build & Test
         run: mvn -q -Dspring.profiles.active=test -DskipTests=false test
 
+      # ✅ 覆盖率报告
       - name: Upload Jacoco report
         if: always()
         uses: actions/upload-artifact@v4
@@ -33,16 +37,7 @@ jobs:
           name: jacoco-site
           path: target/site/jacoco/
 
-      - name: Upload surefire reports on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: surefire-reports
-          path: target/surefire-reports/
-
-
-
-
+      # ❗仅在失败时打印失败摘要（不再重复上传两份同名 surefire）
       - name: Show surefire summary
         if: failure()
         run: |
@@ -52,6 +47,7 @@ jobs:
             grep -R "Caused by" -n target/surefire-reports || true
           fi
 
+      # ✅ 始终上传 surefire 报告（便于远程调试）
       - name: Upload surefire reports
         if: always()
         uses: actions/upload-artifact@v4

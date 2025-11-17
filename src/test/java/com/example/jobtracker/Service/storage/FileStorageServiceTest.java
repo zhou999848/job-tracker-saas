@@ -29,7 +29,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class FileStorageServiceTest {
+class dwFileStorageServiceTest {
 
     @Mock S3Client s3;
     @Mock S3Presigner presigner;

@@ -27,10 +27,11 @@ import java.util.UUID;
 
 public class FileObject implements Persistable<UUID> {
     @Id
-   // @GeneratedValue
-   // @UuidGenerator
+    @GeneratedValue
+    @org.hibernate.annotations.UuidGenerator
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
+
 
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;

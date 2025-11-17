@@ -1,17 +1,18 @@
+# src/test/resources/application-test.yml
 spring:
-  datasource:
-    url: jdbc:postgresql://host.docker.internal:5432/jobtracker   # 改成你的库名/端口
-    username: your_user
-    password: your_pass
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: create-drop
+    show-sql: false
+
+  sql:
+    init:
+      mode: always
 
 security:
   jwt:
     enabled: false
 
-# 仅用于测试环境，Client 只在真正调用时才会连接，不会因没起 MinIO 直接报错
 file:
   s3:
     endpoint: http://localhost:9000
@@ -21,7 +22,3 @@ file:
     bucket: jobtracker
     pathStyle: true
     presignExpireSeconds: 300
-
-  jpa:
-    hibernate:
-      ddl-auto: update   # 你用 Flyway 就删掉这行
