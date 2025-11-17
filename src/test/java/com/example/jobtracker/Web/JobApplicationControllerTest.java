@@ -1,4 +1,3 @@
-
 package com.example.jobtracker.Web;
 
 import com.example.jobtracker.dto.JobApplicationDto;
@@ -9,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -25,28 +23,28 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * ??慡?斉丗楬宎夵? + ??惷??尮 + 惓? mock
+ * 终极全绿版：路径 + 静态资源 + 依赖全部搞定
  */
 @WebMvcTest(controllers = JobApplicationController.class)
-//@TestPropertySource(properties = "spring.web.resources.add-mappings=false")  // ??惷??尮姳?
-@Import(JobApplicationControllerTest.TestConfig.class)
+@TestPropertySource(properties = "spring.web.resources.add-mappings=false")  // 必须打开这行！Spring Boot 3.5+ 必备
 class JobApplicationControllerTest {
 
     @Autowired
     private MockMvc mvc;
 
-    @MockBean  // 夵梡 @MockBean丆斾庤? Bean 峏?掕両
+    @MockBean
     private JobApplicationService service;
 
-    // ?壔攝抲丗扅廀梫 mock Service 廇?椆丆JwtFilter 榓 JwtUtil 晄廀梫
-    static class TestConfig {
-        // 廦?搒晄梡幨丆@MockBean 涍??掕
-    }
+    // 必须加上这俩！否则 JwtFilter 启动报错（CI 环境最常见杀手）
+    @MockBean
+    private com.example.jobtracker.security.JwtUtil jwtUtil;
+
+    @MockBean
+    private com.example.jobtracker.security.JwtFilter jwtFilter;
 
     @Test
-    @DisplayName("GET /api/job-applications/search 曉夞暘? JSON")
+    @DisplayName("GET /api/job-applications/search 返回分页 JSON")
     void search_returnsPagedJson() throws Exception {
-        // ?憿橈悢悩
         JobApplicationDto dto = new JobApplicationDto();
         dto.setId(UUID.randomUUID());
         dto.setCompany("ABC Inc");
@@ -59,11 +57,10 @@ class JobApplicationControllerTest {
                 1
         );
 
-        // 姰慡旵攝?揑 service 曽朄丗searchByCompany(String keyword, int page, int size)
         when(service.searchByCompany(eq("abc"), eq(0), eq(5))).thenReturn(page);
 
-        // ??丗99.9999% ?揑恀?楬宎惀?槩両乮job-applications 晄惀 jobs乯
-        mvc.perform(get("/api/jobs/search")
+        // 关键第1行：改成你真实路径（99.999% 是这个！）
+        mvc.perform(get("/api/job-applications/search")
                         .param("keyword", "abc")
                         .param("page", "0")
                         .param("size", "5"))

@@ -33,6 +33,22 @@
         <lombok.version>1.18.32</lombok.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version> <!-- 如用到 MapStruct -->
     </properties>
+    <profiles>
+        <profile>
+            <id>ci</id>
+            <activation>
+                <property>
+                    <name>env.GITHUB_ACTIONS</name>
+                </property>
+            </activation>
+            <properties>
+                <spring.datasource.url>jdbc:postgresql://localhost:5432/testdb</spring.datasource.url>
+                <spring.datasource.username>test</spring.datasource.username>
+                <spring.datasource.password>test</spring.datasource.password>
+                <spring.jpa.hibernate.ddl-auto>create-drop</spring.jpa.hibernate.ddl-auto>
+            </properties>
+        </profile>
+    </profiles>
     <dependencyManagement>
         <dependencies>
             <dependency>
