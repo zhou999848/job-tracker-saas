@@ -25,28 +25,28 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * 终极全绿版：路径改对 + 关闭静态资源 + 正确 mock
+ * ??慡?斉丗楬宎夵? + ??惷??尮 + 惓? mock
  */
 @WebMvcTest(controllers = JobApplicationController.class)
-@TestPropertySource(properties = "spring.web.resources.add-mappings=false")  // 关闭静态资源干扰
+//@TestPropertySource(properties = "spring.web.resources.add-mappings=false")  // ??惷??尮姳?
 @Import(JobApplicationControllerTest.TestConfig.class)
 class JobApplicationControllerTest {
 
     @Autowired
     private MockMvc mvc;
 
-    @MockBean  // 改用 @MockBean，比手动 Bean 更稳定！
+    @MockBean  // 夵梡 @MockBean丆斾庤? Bean 峏?掕両
     private JobApplicationService service;
 
-    // 简化配置：只需要 mock Service 就够了，JwtFilter 和 JwtUtil 不需要
+    // ?壔攝抲丗扅廀梫 mock Service 廇?椆丆JwtFilter 榓 JwtUtil 晄廀梫
     static class TestConfig {
-        // 什么都不用写，@MockBean 已经搞定
+        // 廦?搒晄梡幨丆@MockBean 涍??掕
     }
 
     @Test
-    @DisplayName("GET /api/job-applications/search 返回分页 JSON")
+    @DisplayName("GET /api/job-applications/search 曉夞暘? JSON")
     void search_returnsPagedJson() throws Exception {
-        // 构造假数据
+        // ?憿橈悢悩
         JobApplicationDto dto = new JobApplicationDto();
         dto.setId(UUID.randomUUID());
         dto.setCompany("ABC Inc");
@@ -59,10 +59,10 @@ class JobApplicationControllerTest {
                 1
         );
 
-        // 完全匹配你的 service 方法：searchByCompany(String keyword, int page, int size)
+        // 姰慡旵攝?揑 service 曽朄丗searchByCompany(String keyword, int page, int size)
         when(service.searchByCompany(eq("abc"), eq(0), eq(5))).thenReturn(page);
 
-        // 关键：99.9999% 你的真实路径是这个！（job-applications 不是 jobs）
+        // ??丗99.9999% ?揑恀?楬宎惀?槩両乮job-applications 晄惀 jobs乯
         mvc.perform(get("/api/jobs/search")
                         .param("keyword", "abc")
                         .param("page", "0")

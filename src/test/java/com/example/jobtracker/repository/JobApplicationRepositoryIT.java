@@ -19,17 +19,15 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import({TestDatabaseConfig.class, TestS3Config.class})
 @DataJpaTest
 @ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class JobApplicationRepositoryIT extends PostgresTCBase {
 
     @Autowired
     private JobApplicationRepository repo;
 
     @Autowired
-    private TenantRepository tenantRepo;  // 加上这行！必须注入！
+    private TenantRepository tenantRepo;
 
     private UUID tenant1;
     private UUID tenant2;
@@ -40,9 +38,8 @@ class JobApplicationRepositoryIT extends PostgresTCBase {
         tenant2 = UUID.randomUUID();
 
         repo.deleteAllInBatch();
-        tenantRepo.deleteAllInBatch();  // 现在不会空指针了！
+        tenantRepo.deleteAllInBatch();
 
-        // 先保存 Tenant
         Tenant t1 = tenantRepo.save(Tenant.builder().id(tenant1).name("Tenant One").build());
         Tenant t2 = tenantRepo.save(Tenant.builder().id(tenant2).name("Tenant Two").build());
 
@@ -72,7 +69,7 @@ class JobApplicationRepositoryIT extends PostgresTCBase {
     }
 
     @Test
-    @DisplayName("findByTenantAndCompany：只返回该租户的数据")
+    @DisplayName("findByTenantAndCompany丗扅曉夞?慸?揑悢悩")
     void findByTenantAndCompany_onlyOwnTenant() {
         var page = repo.findByTenantIdAndCompanyContainingIgnoreCaseAndUser_Username(
                 tenant1, "ABC", "system", org.springframework.data.domain.PageRequest.of(0, 10));
