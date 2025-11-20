@@ -20,6 +20,7 @@ import java.time.LocalDate;//this is for date handling
 public class JobApplication {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)   // ← 加上这行！！！
     private UUID id = UUID.randomUUID();
 
 

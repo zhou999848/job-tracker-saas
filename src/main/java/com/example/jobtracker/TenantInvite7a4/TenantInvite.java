@@ -13,6 +13,7 @@ import java.util.UUID;
 @Table(name = "tenant_invites")
 public class TenantInvite {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)

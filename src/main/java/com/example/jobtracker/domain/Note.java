@@ -12,7 +12,7 @@ import java.util.UUID;
 public class Note {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)   // ← 关键！
     private UUID id;
 
     private UUID jobId;  // 外键，不强关联

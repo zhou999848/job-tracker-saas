@@ -7,7 +7,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @TestConfiguration
-@Testcontainers
+//@Testcontainers
 public class TestDatabaseConfig {
 
     @Container

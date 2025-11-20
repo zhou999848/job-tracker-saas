@@ -44,4 +44,3 @@ public abstract class MinioTCBase {
         r.add("file.s3.pathStyle", () -> true);
     }
 }
-

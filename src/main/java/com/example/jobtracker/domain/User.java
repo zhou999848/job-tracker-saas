@@ -8,7 +8,7 @@ import java.util.UUID;
 @Table(name = "users")
 public class User {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)  // 关键！
     private UUID id;
     @Column(nullable = false, unique = true, length = 100)
     private String username;   // 登录名

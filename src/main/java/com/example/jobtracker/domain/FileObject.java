@@ -27,8 +27,7 @@ import java.util.UUID;
 
 public class FileObject implements Persistable<UUID> {
     @Id
-    @GeneratedValue
-    @org.hibernate.annotations.UuidGenerator
+    @GeneratedValue(strategy = GenerationType.UUID)  // 关键！
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
