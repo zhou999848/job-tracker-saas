@@ -13,7 +13,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.test.context.support.WithMockUser;  // 壛忋?峴
+import org.springframework.security.test.context.support.WithMockUser;  // ????
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -42,9 +42,9 @@ class JobApplicationControllerTest {
     private JwtFilter jwtFilter;
 
     @Test
-    @DisplayName("GET /api/jobs/search 返回分页 JSON")
+    @DisplayName("GET /api/jobs/search 曉夞暘? JSON")
     void search_returnsPagedJson() throws Exception {
-        // 你原来的 mock 和 perform 完全不动
+        // ?尨棃揑 mock 榓 perform 姰慡晄?
         mvc.perform(get("/api/jobs/search")
                         .param("keyword", "abc")
                         .param("page", "0")
