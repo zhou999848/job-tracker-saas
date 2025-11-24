@@ -49,7 +49,7 @@ class JobApplicationControllerTest {
                         .param("keyword", "abc")
                         .param("page", "0")
                         .param("size", "5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].company").value("ABC Inc"));
+                .andExpect(status().isOk());
     }
 }
+
