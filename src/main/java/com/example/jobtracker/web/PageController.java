@@ -1,9 +1,11 @@
 package com.example.jobtracker.web;
 
+import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.*;
 import com.example.jobtracker.repository.JobApplicationRepository;
 import com.example.jobtracker.repository.NoteRepository;
+import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
@@ -66,7 +68,9 @@ public class PageController {
     private final UserService userService;
 private final LoginAttemptService loginAttemptService;
     private final CurrentTenant currentTenant;
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant) {
+    private final TenantRepository tenantRepo;
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo) {
+        this.tenantRepo = tenantRepo;
 
         this.loginAttemptService = loginAttemptService;
         this.jobRepo = jobRepo;
@@ -466,98 +470,100 @@ private final LoginAttemptService loginAttemptService;
         ra.addFlashAttribute("ok", "注册成功！");
         return "redirect:/login";   // 注册完成后跳到登录页
     }
-    /**
-     * 显示登录页面（GET /login）
-     * Display login form (GET /login)
-     *
-     * @param model 用于传递错误信息 Model to pass error messages
-     * @return login.html 页面视图 View name for login.html
-     */
-
     @GetMapping("/login")
-    public String loginPage(//@RequestParam(value = "error", required = false) String error,
-                            @RequestParam(value = "redirect", required = false) String redirect,
+    public String loginPage(@RequestParam(value = "redirect", required = false) String redirect,
                             Model model) {
-       // if (error != null) model.addAttribute("error", "用户名或密码错误");
         model.addAttribute("redirect", redirect);
         return "login";
     }
 
-    // 假设这是你的 LoginController.java 里的方法
     @PostMapping("/login")
-    public String doLogin(@RequestParam String username,
+    public String doLogin(@RequestParam String tenantName,
+                          @RequestParam String username,
                           @RequestParam String password,
                           @RequestParam(required = false) String redirect,
                           HttpServletResponse response,
                           HttpServletRequest request,
-                          Model model,
-                          LoginRequest req) {
+                          Model model) {
 
-// 1) 基本校验
         String uname = username;
 
-        // —— 2) 防爆破：检查是否已被锁定
-        if (loginAttemptService.isBlocked(uname)) {  // ← 需要注入 LoginAttemptService
+        // —— 1) 基本校验（保留你 API 的规则）
+        if (tenantName == null || tenantName.isBlank()
+                || username == null || password == null) {
+            model.addAttribute("error", "tenantName / username / password 必填");
+            model.addAttribute("redirect", redirect);
+            return "login";
+        }
+
+        // —— 2) 防爆破
+        if (loginAttemptService.isBlocked(uname)) {
             model.addAttribute("error", "尝试次数过多，账户已暂时锁定");
             model.addAttribute("redirect", redirect);
             return "login";
         }
 
         try {
-            // —— 3) 调用认证
+            /*
+             * —— 3) 从 tenantName 找 tenantId（你的 API 风格）
+             */
+            Tenant tenant = tenantRepo.findByName(tenantName.trim())
+                    .orElseThrow(() -> new BadCredentialsException("租户不存在"));
+
+            UUID tenantId = tenant.getId();
+
+            // —— 4) 登录前写入 TenantContext（与 API 登录保持一致）
+            com.example.jobtracker.tenant.TenantContext.set(tenantId);
+
+            /*
+             * —— 5) 调用 Spring Security 做认证
+             */
             authManager.authenticate(new UsernamePasswordAuthenticationToken(uname, password));
 
-            // —— 4) 登录成功：清除失败计数
+            // —— 6) 登录成功：清除失败次数
             loginAttemptService.loginSucceeded(uname);
-// 1) 解析 Refresh，拿 username & tenantId（从 token claims）
-            UUID tenantId = currentTenant.requireTenantId(); // ✅ 从上下文拿当前租户 ID
-            String access = jwtUtil.generateAccessToken(tenantId,uname);   // 短期，比如 15 分钟
-            String refresh = jwtUtil.generateRefreshToken(tenantId,uname);  // 长期，比如 7 天
 
-            // ✅ 本地 http 调试 secure(false)；部署到 HTTPS 再改 true
-            boolean secure = request.isSecure(); // 本地一般是 false
-            // 你也可以开发期强制：secure = false;
+            /*
+             * —— 7) 生成 JWT（与 API 保持一致）
+             */
+            String access = jwtUtil.generateAccessToken(tenantId, uname);
+            String refresh = jwtUtil.generateRefreshToken(tenantId, uname);
 
-            // ✅ 写两枚 Cookie（注意 addHeader 调两次，不要用 setHeader）
+            boolean secure = request.isSecure(); // 本地开发 = false
+
+            // —— 8) 写 Access/Refresh Cookie（你的旧逻辑）
             ResponseCookie accessCookie = ResponseCookie.from("ACCESS", access)
                     .httpOnly(true).secure(false).sameSite("Lax")
-                    .path("/")                 // 业务请求都会带
-                    .maxAge(15 * 60)          // 示例：15 分钟
+                    .path("/")
+                    .maxAge(15 * 60)
                     .build();
 
             ResponseCookie refreshCookie = ResponseCookie.from("REFRESH", refresh)
                     .httpOnly(true).secure(false).sameSite("Lax")
-                    .path("/") // 仅刷新接口会带
-                    .maxAge(7 * 24 * 3600)     // 示例：7 天
+                    .path("/")
+                    .maxAge(7 * 24 * 3600)
                     .build();
 
             response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
             response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-            String requestUri = request.getRequestURI();
-            model.addAttribute("basePath", requestUri);
-            model.addAttribute("redirect", redirect);
+
+            // —— 9) 跳转（保留你之前逻辑）
             if (redirect != null && !redirect.isBlank()
                     && redirect.startsWith("/")
                     && !redirect.startsWith("/error")
                     && !redirect.startsWith("/login")) {
                 return "redirect:" + redirect.trim();
             }
+
             return "redirect:/jobs";
+
         } catch (BadCredentialsException e) {
-            // 5) 认证失败：累计失败次数
             loginAttemptService.loginFailed(uname);
             model.addAttribute("error", "用户名或密码错误");
             model.addAttribute("redirect", redirect);
             return "login";
 
-        } catch (LockedException e) {
-            // （可选分支）如果你的 AuthenticationProvider 内部也会抛 LockedException，可单独处理
-            model.addAttribute("error", "尝试次数过多，账户已暂时锁定");
-            model.addAttribute("redirect", redirect);
-            return "login";
-
         } catch (AuthenticationException e) {
-            // 其他认证类异常：也算一次失败
             loginAttemptService.loginFailed(uname);
             model.addAttribute("error", "登录失败，请重试");
             model.addAttribute("redirect", redirect);
@@ -567,26 +573,27 @@ private final LoginAttemptService loginAttemptService;
             model.addAttribute("error", "系统错误，请稍后重试");
             model.addAttribute("redirect", redirect);
             return "login";
+
+        } finally {
+            // —— 10) 清理（与 API 登录一致）
+            com.example.jobtracker.tenant.TenantContext.clear();
         }
-
     }
-
-
-    // 建议放在同一个 Controller 里
+    // 寶?曻嵼摨堦槩 Controller 棦
     private void clearAllAuthCookies(HttpServletResponse response) {
-        // 1) 访问令牌：ACCESS（路径 /）
-        // 本地 http（Secure=false, SameSite=Lax）
+        // 1) ??椷攙丗ACCESS乮楬宎 /乯
+        // 杮抧 http乮Secure=false, SameSite=Lax乯
         response.addHeader("Set-Cookie", "ACCESS=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
-        // 线上 https（Secure=true, SameSite=None）
+        // ?忋 https乮Secure=true, SameSite=None乯
         response.addHeader("Set-Cookie", "ACCESS=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None");
 
-        // 2) 刷新令牌：REFRESH（路径 /api/auth/refresh）
-        // 本地 http
+        // 2) 嶞怴椷攙丗REFRESH乮楬宎 /api/auth/refresh乯
+        // 杮抧 http
         response.addHeader("Set-Cookie", "REFRESH=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
-        // 线上 https
+        // ?忋 https
         response.addHeader("Set-Cookie", "REFRESH=; Path=/api/auth/refresh; Max-Age=0; HttpOnly; Secure; SameSite=None");
 
-        // 3) 兼容历史：若曾用过单一 JWT 名称，顺手清掉（路径 /）
+        // 3) 寭梕?巎丗庒慭梡??堦 JWT 柤徧丆?庤惔漿乮楬宎 /乯
         response.addHeader("Set-Cookie", "JWT=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
         response.addHeader("Set-Cookie", "JWT=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None");
     }
