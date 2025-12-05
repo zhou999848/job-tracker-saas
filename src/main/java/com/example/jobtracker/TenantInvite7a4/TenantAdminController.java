@@ -25,15 +25,16 @@ import com.example.jobtracker.TenantInvite7a4.TenantAdminService;
         public InviteInfoResp createInvite(@PathVariable UUID tenantId, @RequestBody CreateInviteReq req) {
             return tenantAdminService.createInvite(tenantId, req);
         }
-
         // 成员列表
         @GetMapping("/{tenantId}/members")
         @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
         public List<MemberDto> members(@PathVariable UUID tenantId,
                                        @RequestParam(defaultValue = "0") int page,
                                        @RequestParam(defaultValue = "20") int size) {
-     return tenantAdminService.listMembers(tenantId, page, size).getContent();
+            return tenantAdminService.listMembers(tenantId, page, size).getContent();
         }
+
+
 
         // 删除成员
         @DeleteMapping("/{tenantId}/members/{userId}")

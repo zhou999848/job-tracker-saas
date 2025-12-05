@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Tenant Members</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f3f3f3; }
+        .pagination { margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<h2>成员列表</h2>
+<table>
+    <thead>
+    <tr>
+       <!-- <th>User ID</th>
+      <th>Email</th>
+      <th>Created At</th> -->
+        <th>Username</th>
+        <th>Role</th>
+        <th>Actions(操作)</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="m : ${members}">
+        <!--<td th:text="${m.userId}"></td>
+        <td th:text="${m.email}"></td>
+            <td th:text="${m.createdAt}"></td>-->
+        <td th:text="${m.username}"></td>
+        <td th:text="${m.role}"></td>
+        <td>
+            <a th:href="@{|/tenants/${tenantId}/rename|}">重新命名租户</a><br>
+            |
+            <a th:href="@{|/tenants/${tenantId}/members/${m.userId}/role|}" >变更角色</a>
+            |
+            <button type="button" class="btn-delete-member" th:attr="data-user-id=${m.userId},
+            data-tenant-id=${tenantId}">删除</button>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- 分页 -->
+<div class="pagination">
+    <a th:if="${page > 0}"
+       th:href="@{|/tenants/${tenantId}/members?page=${page - 1}|}">
+        上一页
+    </a>
+
+    &nbsp; 当前页: <span th:text="${page}"></span> &nbsp;
+
+    <a th:if="${!last}"
+       th:href="@{|/tenants/${tenantId}/members?page=${page + 1}|}">
+        下一页
+    </a>
+</div>
+
+<hr>
+<a th:href="@{/tenants/${tenantId}/rename}">重新命名租户</a><br>
+
+<a th:href="@{/tenants/${tenantId}/invite}">邀请新成员</a>
+<a th:href="@{/jobs}">返回职位列表</a>
+
+
+
+
+
+
+
+
+
+<script>
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-delete-member');
+        if (!btn) return;
+
+        const userId = btn.dataset.userId;
+        const tenantId = btn.dataset.tenantId;
+
+        if (!userId || !tenantId) {
+            alert(I18N.notFoundId);
+            return;
+        }
+
+        if (!confirm(I18N.confirmDelete)) return;
+
+        const url = `/api/admin/tenants/${tenantId}/members/${userId}`;
+
+        try {
+            const res = await apiFetch(url, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+
+            if (res.status === 401) {
+                const back = encodeURIComponent(location.pathname + location.search);
+                alert(I18N.unauthorized);
+                location.href = `/login?redirect=${back}`;
+                return;
+            }
+
+            if (res.status === 403) {
+                const msg = await res.text().catch(() => '');
+                alert(I18N.forbidden + '\n' + msg);
+                return;
+            }
+
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                alert(`❌ ${I18N.deleteFail}: HTTP ${res.status}\n${text}`);
+                return;
+            }
+
+            // 删除当前行
+            btn.closest('tr')?.remove();
+            alert('✅ ' + I18N.deleteOk);
+
+        } catch (err) {
+            console.error(err);
+            alert(`❌ ${I18N.netOrScriptErr}: ${err?.message || err}`);
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const count = document.querySelectorAll('.btn-delete-member').length;
+        console.log('[Init] delete-member buttons =', count);
+    });
+</script>
+
+</body>
+</html>

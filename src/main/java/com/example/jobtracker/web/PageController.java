@@ -1,5 +1,9 @@
 package com.example.jobtracker.web;
 
+import com.example.jobtracker.TenantInvite7a4.CreateInviteReq;
+import com.example.jobtracker.TenantInvite7a4.InviteMemberForm;
+import com.example.jobtracker.TenantInvite7a4.MemberDto;
+import com.example.jobtracker.TenantInvite7a4.TenantAdminService;
 import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.*;
@@ -14,23 +18,22 @@ import com.example.jobtracker.service.CurrentTenant;
 import com.example.jobtracker.service.JobApplicationService;
 import com.example.jobtracker.service.NoteService;
 import com.example.jobtracker.service.UserService;
+import com.example.jobtracker.ああ７a５.ChangeRoleForm;
+import com.example.jobtracker.ああ７a５.MemberRoleService;
+import com.example.jobtracker.ああ７a５.RenameTenantForm;
+import com.example.jobtracker.ああ７a５.TenantProfileService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.file.Path;
 import jakarta.validation.Valid;
-import org.apache.coyote.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -49,7 +52,6 @@ import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import com.example.jobtracker.security.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -69,7 +71,13 @@ public class PageController {
 private final LoginAttemptService loginAttemptService;
     private final CurrentTenant currentTenant;
     private final TenantRepository tenantRepo;
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo) {
+    private final TenantAdminService tenantAdminService;
+    private final MemberRoleService memberRoleService;
+    private final TenantProfileService tenantProfileService;
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo, TenantAdminService tenantAdminService, MemberRoleService memberRoleService, TenantProfileService tenantProfileService) {
+this .tenantProfileService = tenantProfileService;
+        this.memberRoleService = memberRoleService;
+this.tenantAdminService = tenantAdminService;
         this.tenantRepo = tenantRepo;
 
         this.loginAttemptService = loginAttemptService;
@@ -636,6 +644,107 @@ private final LoginAttemptService loginAttemptService;
     public String encoding() {
         return "中文OK 日本語OK ひらがなカタカナ";
     }
+
+
+
+        // 成员列表页面
+        @GetMapping("tenants/{tenantId}/members")
+        @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+        public String membersPage(@PathVariable UUID tenantId,
+                                  @RequestParam(defaultValue = "0") int page,
+                                  @RequestParam(defaultValue = "5") int size,
+                                  Model model) {
+
+            Page<MemberDto> memberPage = tenantAdminService.listMembers(tenantId, page, size);
+
+            model.addAttribute("tenantId", tenantId);
+            model.addAttribute("members", memberPage.getContent());
+            model.addAttribute("page", page);
+            model.addAttribute("last", memberPage.isLast());
+            model.addAttribute("inviteForm", new InviteMemberForm());
+
+            return "tenant-members";
+        }
+    // 显示邀请成员页面（HTML 表单）
+    @GetMapping("tenants/{tenantId}/invite")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String showInvitePage(@PathVariable UUID tenantId, Model model) {
+
+        // 用于表单绑定
+        model.addAttribute("inviteForm", new InviteMemberForm());
+
+        // 页面需要 tenantId 用于拼接 action
+        model.addAttribute("tenantId", tenantId);
+
+        return "tenant-invite-user";  // 对应 templates/tenant/invite.html
+    }
+
+        // 邀请成员（表单）
+        @PostMapping("tenants/{tenantId}/invite")
+        @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+        public String invite(@PathVariable UUID tenantId,
+                             @ModelAttribute InviteMemberForm form) {
+            CreateInviteReq req = new CreateInviteReq(form.getEmail(), form.getRole(),form.getDaysToExpire());
+            tenantAdminService.createInvite(tenantId,req);
+
+            return "redirect:/tenants/" + tenantId + "/members";
+        }
+
+
+
+    @GetMapping("/tenants/{tenantId}/members/{userId}/role")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String showChangeRolePage(@PathVariable UUID tenantId,
+                                     @PathVariable UUID userId,
+                                     Model model) {
+
+        ChangeRoleForm form = new ChangeRoleForm();
+        model.addAttribute("form", form);
+        model.addAttribute("tenantId", tenantId);
+        model.addAttribute("userId", userId);
+
+        return "tenant-change-role";
+    }
+
+    @PostMapping("/tenants/{tenantId}/members/{userId}/role")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String changeRole(@PathVariable UUID tenantId,
+                             @PathVariable UUID userId,
+                             @ModelAttribute("form") ChangeRoleForm form) {
+
+       memberRoleService .changeRole(tenantId, userId, form.getNewRole());
+
+        return "redirect:/tenants/" + tenantId + "/members";
+    }
+
+
+
+
+
+    @GetMapping("/tenants/{tenantId}/rename")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String showRenameTenantPage(@PathVariable UUID tenantId,
+                                       Model model) {
+
+        RenameTenantForm form = new RenameTenantForm();
+
+        model.addAttribute("form", form);
+        model.addAttribute("tenantId", tenantId);
+
+        return "tenant-rename";
+    }
+
+    @PostMapping("/tenants/{tenantId}/rename")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String renameTenant(@PathVariable UUID tenantId,
+                               @ModelAttribute("form") RenameTenantForm form) {
+
+   tenantProfileService.rename(tenantId, form.getNewName());
+
+        return "redirect:/tenants/" + tenantId + "/members";
+    }
+
+
 
 }
 

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>变更用户角色</title>
+</head>
+<body>
+
+<h2>变更用户角色</h2>
+
+<form th:action="@{|/tenants/${tenantId}/members/${userId}/role|}"
+      th:object="${form}"
+      method="post">
+
+    <label>新角色：
+        <select th:field="*{newRole}">
+            <option value="USER">普通用户 USER</option>
+            <option value="TENANT_ADMIN">租户管理员 TENANT_ADMIN</option>
+            <option value="SYSTEM_ADMIN">系统管理员 SYSTEM_ADMIN</option>
+        </select>
+    </label>
+
+    <br/><br/>
+    <button type="submit">保存</button>
+</form>
+
+<br/>
+<a th:href="@{|/tenants/${tenantId}/members|}">返回成员列表</a>
+
+</body>
+</html>
+
