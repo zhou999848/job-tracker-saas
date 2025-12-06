@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>邀请记录</title>
+</head>
+
+<body>
+
+<h2>邀请记录列表</h2>
+
+<table border="1" cellpadding="6">
+    <thead>
+    <tr>
+        <th>Email</th>
+        <th>角色</th>
+        <th>过期时间</th>
+        <th>状态</th>
+        <th>邀请链接</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    <tr th:each="i : ${invites}">
+        <td th:text="${i.email}"></td>
+        <td th:text="${i.role}"></td>
+        <td th:text="${#dates.format(i.expiresAt, 'yyyy-MM-dd HH:mm')}"></td>
+
+        <!-- 状态逻辑 -->
+        <td>
+            <span th:if="${i.used}">已使用</span>
+            <span th:if="${!i.used and i.expiresAt.isBefore(T(java.time.Instant).now())}">
+                已过期
+            </span>
+            <span th:if="${!i.used and i.expiresAt.isAfter(T(java.time.Instant).now())}">
+                未使用
+            </span>
+        </td>
+
+        <!-- 邀请链接 -->
+        <td>
+            <input type="text"
+                   th:value="@{'/invite/accept?token=' + ${i.inviteToken}}"
+                   readonly
+                   style="width:260px;">
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<br>
+<a th:href="@{/tenants/{id}/members(id=${tenantId})}">返回成员列表</a>
+
+</body>
+</html>

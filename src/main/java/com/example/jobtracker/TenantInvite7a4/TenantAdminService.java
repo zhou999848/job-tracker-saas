@@ -74,49 +74,60 @@ public class TenantAdminService {
     @Transactional
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
     public InviteInfoResp createInvite(UUID tenantId, CreateInviteReq req) {
-        // 0) 参数校验…
-        // 1) ensureSameTenantOrSysAdmin(tenantId);
-        // 2) 幂等检查…
+
+        // 统一当前时间
         Instant now = Instant.now(clock);
 
         Tenant tenant = tenants.findById(tenantId)
                 .orElseThrow(() -> new NoSuchElementException("Tenant not found"));
 
+        // 1) 永远新建实体（不能复用）
         TenantInvite invite = new TenantInvite();
-        invite.setId(UUID.randomUUID());
+        // ❌ 不能 setId()，让 Hibernate 自动生成
         invite.setTenant(tenant);
+
         invite.setEmail(normalizeEmail(req.email()));
-        Role role = (req.role() == null) ? Role.USER : req.role();
+
+        Role role = req.role() == null ? Role.USER : req.role();
         invite.setRole(role);
+
         invite.setToken(generateStrongToken(48));
-        invite.setExpiresAt(now.plus(Duration.ofDays(
-                (req.daysToExpire() == null || req.daysToExpire() <= 0) ? 7 : req.daysToExpire()
-        )));
+
+        int days = (req.daysToExpire() == null || req.daysToExpire() <= 0)
+                ? 7
+                : req.daysToExpire();
+        invite.setExpiresAt(now.plus(Duration.ofDays(days)));
+
         invite.setCreatedAt(now);
 
-        // ✅ 关键改动：一律从认证主体拿 userId，保证非空，避免跨租户取不到的问题
+        // 2) 记录创建者
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) throw new IllegalStateException("No authentication");
+
         Object details = auth.getDetails();
         if (!(details instanceof LoginUser lu) || lu.userId() == null) {
             throw new IllegalStateException("Missing userId in authentication details");
         }
-        // 如果实体是 UUID 列：
-        invite.setCreatedBy(lu.userId());
-        // 如果实体是字符串列：
-        // invite.setCreatedBy(lu.userId().toString());
 
+        invite.setCreatedBy(lu.userId());
+
+        // 3) 保存（此处 Hibernate 会 persist，而不是 merge）
         invites.save(invite);
 
         log.info("[InviteCreated] tenant={}, email={}, role={}, createdBy={}, token={}",
                 tenant.getName(), invite.getEmail(), role, lu.userId(), invite.getToken());
 
-   //final String frontBaseUrl = "https://localhost:8080";
-        String inviteToken =   invite.getToken();
-
-        return new InviteInfoResp(invite.getEmail(), tenant.getName(), invite.getRole(),
-                invite.getExpiresAt(), false,inviteToken);
+        // 返回给前端
+        return new InviteInfoResp(
+                invite.getEmail(),
+                tenant.getName(),
+                invite.getRole(),
+                invite.getExpiresAt(),
+                false,
+                invite.getToken()
+        );
     }
+
 
 
 
@@ -375,6 +386,19 @@ public class TenantAdminService {
         return false;
     }
 
+    @Transactional(readOnly = true)
+    public List<InviteInfoResp> listInvites(UUID tenantId) {
+        return invites.findByTenant_Id(tenantId).stream()
+                .map(i -> new InviteInfoResp(
+                        i.getEmail(),
+                        i.getTenant().getName(),
+                        i.getRole(),
+                        i.getExpiresAt(),
+                        i.isUsed(),
+                        i.getToken()
+                ))
+                .toList();
+    }
 
 
 }

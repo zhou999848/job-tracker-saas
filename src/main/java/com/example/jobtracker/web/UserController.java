@@ -9,6 +9,7 @@ import com.example.jobtracker.dto.UserDto;
 import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.service.UserService;
+import io.micrometer.common.lang.Nullable;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,16 +69,7 @@ public class UserController {
         return "Registered successfully!";
     }
 
-    /**
-     * ⚠️ 仅限后台/兼容旧接口（不对外）
-     * [POST] /api/users/register
-     */
-    @PostMapping("/register")
-    public String register(@RequestBody UserDto dto) {
-        logger.warn("[Register-Deprecated] username={} - 仅限后台使用！", dto.getUsername());
-        service.register(dto); // 使用 dto.tenantId
-        return "Registered successfully!";
-    }
+
     /**
      * ? 搊?愙岥 / User Login
      * [POST] /api/users/login

@@ -79,14 +79,7 @@ public class UserService {
         return user.getId().toString();
     }
 
-    /** ⚠️ 仅限管理员/后台使用（保留兼容旧接口，不推荐外部调用） */
-    @Transactional
-    public void register(UserDto dto) {
-        if (dto == null || dto.getTenantId() == null) {
-            throw new IllegalArgumentException("tenantId is required");
-        }
-        registerViaAdminOrInvite(dto, null); // 兜底走 dto.tenantId
-    }
+
 
 
 
@@ -125,5 +118,7 @@ public class UserService {
         UUID tenantId = currentTenant.requireTenantId();
        return repo.findByTenantIdAndUsername(tenantId,username);
     }
-    }
+
+
+}
 

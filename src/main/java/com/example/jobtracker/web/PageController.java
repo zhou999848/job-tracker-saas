@@ -1,9 +1,6 @@
 package com.example.jobtracker.web;
 
-import com.example.jobtracker.TenantInvite7a4.CreateInviteReq;
-import com.example.jobtracker.TenantInvite7a4.InviteMemberForm;
-import com.example.jobtracker.TenantInvite7a4.MemberDto;
-import com.example.jobtracker.TenantInvite7a4.TenantAdminService;
+import com.example.jobtracker.TenantInvite7a4.*;
 import com.example.jobtracker.domain.Tenant;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.dto.*;
@@ -453,31 +450,46 @@ this.tenantAdminService = tenantAdminService;
 
 
 
-
-    // 显示注册页面
     @GetMapping("/register")
+    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
     public String registerPage(Model model) {
+
+        // 当前租户 ID（必要）
+        UUID tenantId = currentTenant.requireTenantId();
+        model.addAttribute("tenantId", tenantId);
+
+        // 若没有表单对象则初始化
         if (!model.containsAttribute("userDto")) {
-            model.addAttribute("userDto", new UserDto()); // 你的表单类
+            UserDto dto = new UserDto();
+            dto.setRole("USER"); // 默认角色（可按需）
+            model.addAttribute("userDto", dto);
         }
 
-        return "register";  // 对应 templates/register.html
+        return "register";
     }
-
-    // 接收表单提交
     @PostMapping("/register")
+    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
     public String register(@ModelAttribute("userDto") @Valid UserDto dto,
                            BindingResult br,
                            RedirectAttributes ra) {
-            if (br.hasErrors()) {
-                // 直接返回 add-job 模板，让 Thymeleaf 读取 BindingResult 渲染错误
-                return "register";
-            }
-        logger.info("[Register] username={} - 用户注册", dto.getUsername());
-        userService.register(dto);
-        ra.addFlashAttribute("ok", "注册成功！");
-        return "redirect:/login";   // 注册完成后跳到登录页
+
+        UUID tenantId = currentTenant.requireTenantId();
+
+        if (br.hasErrors()) {
+            return "register";  // 回到注册页，显示错误
+        }
+
+        logger.info("[Register(Admin)] username={} tenant={}", dto.getUsername(), tenantId);
+
+        // ★★ 关键：走新的安全注册方法 ★★
+        userService.registerViaAdminOrInvite(dto, tenantId);
+
+        ra.addFlashAttribute("ok", "注册成功");
+        return "redirect:/tenants/" + tenantId + "/members";
     }
+
+
+
     @GetMapping("/login")
     public String loginPage(@RequestParam(value = "redirect", required = false) String redirect,
                             Model model) {
@@ -742,6 +754,18 @@ this.tenantAdminService = tenantAdminService;
    tenantProfileService.rename(tenantId, form.getNewName());
 
         return "redirect:/tenants/" + tenantId + "/members";
+    }
+
+    @GetMapping("/tenants/{tenantId}/invitesList")
+    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
+    public String listInvites(@PathVariable UUID tenantId, Model model) {
+
+        List<InviteInfoResp> invites = tenantAdminService.listInvites(tenantId);
+
+        model.addAttribute("invites", invites);
+        model.addAttribute("tenantId", tenantId);
+
+        return "tenant-invite-list";
     }
 
 

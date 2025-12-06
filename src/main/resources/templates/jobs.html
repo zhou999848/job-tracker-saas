@@ -11,12 +11,13 @@
 
 <!-- 已登录可见 -->
 <div sec:authorize="isAuthenticated()">
-    <span th:text="#{nav.hello}">你好,</span>
-    <b sec:authentication="name">user</b>
+    <span th:text="#{nav.hello}">你好,</span> <b sec:authentication="name">user</b>
     <form th:action="@{/logout}" method="post" style="display:inline">
         <button type="submit" th:text="#{nav.logout}">退出</button>
     </form>
 </div>
+
+
 
 <!-- 未登录可见 -->
 <div sec:authorize="isAnonymous()">

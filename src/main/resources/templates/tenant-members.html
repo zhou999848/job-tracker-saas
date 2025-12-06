@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
     <title>Tenant Members</title>
@@ -13,7 +13,22 @@
 </head>
 <body>
 
+<!-- 已登录可见 -->
+<div sec:authorize="isAuthenticated()">
+
+    <span>租户名：</span>
+    <b sec:authentication="principal.tenantName">TenantName</b>
+
+
+    <form th:action="@{|/tenants/${tenantId}/rename|}" style="display:inline">
+        <button type="submit" >重新命名租户</button>
+    </form>
+</div>
+
 <h2>成员列表</h2>
+<a th:href="@{/register}" >注册新用员</a><br>
+<a th:href="@{|/tenants/${tenantId}/invite|}">邀请新成员</a><br>
+<a th:href="@{|/tenants/${tenantId}/invitesList|}">邀请记录列表</a><br>
 <table>
     <thead>
     <tr>
@@ -33,8 +48,6 @@
         <td th:text="${m.username}"></td>
         <td th:text="${m.role}"></td>
         <td>
-            <a th:href="@{|/tenants/${tenantId}/rename|}">重新命名租户</a><br>
-            |
             <a th:href="@{|/tenants/${tenantId}/members/${m.userId}/role|}" >变更角色</a>
             |
             <button type="button" class="btn-delete-member" th:attr="data-user-id=${m.userId},
@@ -59,17 +72,7 @@
     </a>
 </div>
 
-<hr>
-<a th:href="@{/tenants/${tenantId}/rename}">重新命名租户</a><br>
-
-<a th:href="@{/tenants/${tenantId}/invite}">邀请新成员</a>
 <a th:href="@{/jobs}">返回职位列表</a>
-
-
-
-
-
-
 
 
 

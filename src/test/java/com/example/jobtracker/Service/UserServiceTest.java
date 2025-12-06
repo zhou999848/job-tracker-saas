@@ -11,6 +11,7 @@ import com.example.jobtracker.repository.TenantRepository;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.service.CurrentTenant;
 import com.example.jobtracker.service.UserService;
+import io.micrometer.common.lang.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -138,7 +139,7 @@ class UserServiceTest {
             return u;
         });
 
-        assertDoesNotThrow(() -> userService.register(dto));
+        assertDoesNotThrow(() -> userService.registerViaAdminOrInvite(UserDto, pathTenantId);
         verify(userRepo).save(any(User.class));
     }
 
