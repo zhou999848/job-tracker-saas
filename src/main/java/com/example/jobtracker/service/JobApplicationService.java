@@ -102,23 +102,6 @@ public class JobApplicationService {
     }
 
 
-    @Transactional(readOnly = true)
-    public List<JobApplicationDto> findAll() {
-        UUID tenantId = currentTenant.requireTenantId();
-        // 如需“当前用户”限定，可加 username 过滤接口。这里演示“租户内全部”（通常给租户管理员用）。
-        return jobRepository.findByTenantId(tenantId, PageRequest.of(0, Integer.MAX_VALUE))
-                .stream()
-                .map(job -> {
-                    JobApplicationDto dto = new JobApplicationDto();
-                    dto.setId(job.getId());
-                    dto.setCompany(job.getCompany());
-                    dto.setPosition(job.getPosition());
-                    dto.setStatus(job.getStatus());
-                    dto.setAppliedDate(job.getAppliedDate());
-                    return dto;
-                })
-                .toList();
-    }
 
     @Transactional(readOnly = true)
     public Page<JobApplicationDto> findAll(int page, int size, String sortBy, String direction) {

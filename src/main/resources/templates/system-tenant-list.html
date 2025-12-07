@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Tenant List</title>
+</head>
+<body>
+
+
+<h2>Tenant List</h2>
+
+
+<form th:object="${searchForm}" th:action="@{/system/tenants}" method="get" >
+    <input type="text" th:field="*{keyword}" placeholder="Search tenant name">
+    <button type="submit">Search</button>
+</form>
+<a th:href="@{/system/tenants/create}">Create New Tenant</a>
+
+<table border="1" cellspacing="0" cellpadding="8">
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Members</th>
+        <th>Actions</th>
+        <th>aa</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    <tr th:each="t : ${tenants}">
+        <td th:text="${t.name}"></td>
+        <td th:text="${t.status}"></td>
+        <td th:text="${t.memberCount}"></td>
+        <td th:text="${t}"></td>
+        <td>
+            <!-- 重命名按钮 -->
+            <form th:action="@{/tenants/{id}/rename(id=${tenantId})}"
+                  method="get"
+                  style="display:inline-block; margin-left:8px;">
+                <button type="submit">重命名</button>
+            </form>
+              <!-- 封禁/解封按钮 -->
+            <button type="button"
+                    th:if="${t['status'].toString() == 'ACTIVE'}"
+                    th:data-id="${t['id']}"
+                    onclick="suspendTenant(this.dataset.id)">
+            封禁
+           </button>
+
+            <button type="button"
+                    th:if="${t['status'].toString() == 'SUSPENDED'}"
+                    th:data-id="${t['id']}"
+                    onclick="resumeTenant(this.dataset.id)">
+                解封
+            </button>
+
+        </td>
+
+
+
+    </tr>
+    </tbody>
+</table>
+<script>
+    async function suspendTenant(tenantId) {
+        if (!confirm("确定要封禁该租户吗？")) return;
+
+        const res = await fetch(`/api/tenants/${tenantId}/suspend`, {
+            method: "PATCH"
+        });
+
+        if (!res.ok) {
+            alert("封禁失败");
+            return;
+        }
+
+        location.reload();
+    }
+
+    async function resumeTenant(tenantId) {
+        if (!confirm("确定要解封该租户吗？")) return;
+
+        const res = await fetch(`/api/tenants/${tenantId}/resume`, {
+            method: "PATCH"
+        });
+
+        if (!res.ok) {
+            alert("解封失败");
+            return;
+        }
+
+        location.reload();
+    }
+</script>
+
+</body>
+</html>

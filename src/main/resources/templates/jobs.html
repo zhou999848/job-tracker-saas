@@ -27,7 +27,12 @@
 <a th:href="@{/profile}" th:text="#{nav.profile}">个人信息管理</a>
 <a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}">租户成员信息管理</a>
 
-<h2 th:text="#{page.jobs.heading}">已申请职位列表</h2>
+<h2>
+    求职记录列表
+    <span style="color:#666; font-size:14px;">
+        （共 <span th:text="${totalJobs}">0</span> 条）
+    </span>
+</h2>
 
 <!-- 搜索框 -->
 <form th:action="@{/jobs/search}" method="post">

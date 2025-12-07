@@ -59,6 +59,8 @@ public class TenantResolverFilter extends OncePerRequestFilter {
         String[] patterns = {
                 "/api/tenants/{tenantId}",
                 "/api/tenants/{tenantId}/**",
+                "/api/admin/tenants/{tenantId}",
+                "/api/admin/tenants/{tenantId}/**"
                 // 如果应用部署在子上下文，可加 "/**/api/tenants/{tenantId}/**"
         };
         for (String p : patterns) {

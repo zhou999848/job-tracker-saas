@@ -1,5 +1,6 @@
 package com.example.jobtracker.TenantInvite7a4;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,13 +35,20 @@ import com.example.jobtracker.TenantInvite7a4.TenantAdminService;
             return tenantAdminService.listMembers(tenantId, page, size).getContent();
         }
 
-
-
         // 删除成员
         @DeleteMapping("/{tenantId}/members/{userId}")
         @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
         public void remove(@PathVariable UUID tenantId, @PathVariable UUID userId) {
             tenantAdminService.removeMember(tenantId, userId);
+        }
+        // 删除邀请记录
+        // 这里的路径必须和前端 fetch 的 URL 一样
+        @DeleteMapping("/{tenantId}/invites/{inviteId}")
+        public ResponseEntity<Void> deleteInvite(@PathVariable UUID tenantId,
+                                                 @PathVariable UUID inviteId) {
+            tenantAdminService.removeInvite(tenantId, inviteId);
+            // 不返回页面，只返回 204，给前端 AJAX 用
+            return ResponseEntity.noContent().build(); // HTTP 204
         }
     }
 

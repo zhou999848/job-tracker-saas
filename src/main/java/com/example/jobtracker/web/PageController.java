@@ -11,10 +11,7 @@ import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.security.LoginAttemptService;
-import com.example.jobtracker.service.CurrentTenant;
-import com.example.jobtracker.service.JobApplicationService;
-import com.example.jobtracker.service.NoteService;
-import com.example.jobtracker.service.UserService;
+import com.example.jobtracker.service.*;
 import com.example.jobtracker.ああ７a５.ChangeRoleForm;
 import com.example.jobtracker.ああ７a５.MemberRoleService;
 import com.example.jobtracker.ああ７a５.RenameTenantForm;
@@ -26,6 +23,8 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -49,10 +48,13 @@ import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import com.example.jobtracker.security.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+
 
 @Controller
 public class PageController {
@@ -71,7 +73,9 @@ private final LoginAttemptService loginAttemptService;
     private final TenantAdminService tenantAdminService;
     private final MemberRoleService memberRoleService;
     private final TenantProfileService tenantProfileService;
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo, TenantAdminService tenantAdminService, MemberRoleService memberRoleService, TenantProfileService tenantProfileService) {
+    private final TenantService tenantService;
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo, TenantAdminService tenantAdminService, MemberRoleService memberRoleService, TenantProfileService tenantProfileService, TenantService tenantService) {
+        this.tenantService = tenantService;
 this .tenantProfileService = tenantProfileService;
         this.memberRoleService = memberRoleService;
 this.tenantAdminService = tenantAdminService;
@@ -112,6 +116,8 @@ this.tenantAdminService = tenantAdminService;
         model.addAttribute("sortBy", sortBy);
         model.addAttribute("direction", direction);
         model.addAttribute("pageSize", size);
+        model.addAttribute("totalJobs", jobs.getTotalElements());
+
 
         return "jobs";  // 指向 templates/jobs.html
     }
@@ -255,6 +261,8 @@ this.tenantAdminService = tenantAdminService;
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", notes.getTotalPages());
         model.addAttribute("pageSize", size);
+        model.addAttribute("totalNotes", notes.getTotalElements());
+
 
         return "notes";  // 指向 templates/notes.html
     }
@@ -264,6 +272,7 @@ this.tenantAdminService = tenantAdminService;
     public String showAddNoteForm(@RequestParam UUID jobId,Model model) {
 
         model.addAttribute("jobs", new JobApplicationDto());
+
         model.addAttribute("jobId", jobId);
         return "add-note"; // 返回上传页面的视图名
     }
@@ -670,10 +679,20 @@ this.tenantAdminService = tenantAdminService;
             Page<MemberDto> memberPage = tenantAdminService.listMembers(tenantId, page, size);
 
             model.addAttribute("tenantId", tenantId);
+            Tenant t = tenantRepo.findById(tenantId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "租户不存在"));
+            model.addAttribute("tenantName", t.getName());
             model.addAttribute("members", memberPage.getContent());
+            model.addAttribute("totalMembers", memberPage.getTotalElements());
+            // ⭐⭐ 新增
+            model.addAttribute("currentPage", page);
+            model.addAttribute("totalPages", memberPage.getTotalPages());
+            model.addAttribute("pageSize", size);
+
             model.addAttribute("page", page);
             model.addAttribute("last", memberPage.isLast());
             model.addAttribute("inviteForm", new InviteMemberForm());
+
 
             return "tenant-members";
         }
@@ -695,11 +714,12 @@ this.tenantAdminService = tenantAdminService;
         @PostMapping("tenants/{tenantId}/invite")
         @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
         public String invite(@PathVariable UUID tenantId,
-                             @ModelAttribute InviteMemberForm form) {
+                             @ModelAttribute InviteMemberForm form
+        ,RedirectAttributes ra) {
             CreateInviteReq req = new CreateInviteReq(form.getEmail(), form.getRole(),form.getDaysToExpire());
             tenantAdminService.createInvite(tenantId,req);
-
-            return "redirect:/tenants/" + tenantId + "/members";
+            ra.addFlashAttribute("ok", "邀请成功！");
+            return "redirect:/tenants/" + tenantId + "/invitesList";
         }
 
 
@@ -768,6 +788,46 @@ this.tenantAdminService = tenantAdminService;
         return "tenant-invite-list";
     }
 
+
+
+
+
+//    ⑦ 系统管理员查看所有租户页面
+
+
+    @GetMapping("/system/tenants")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+        public String listTenants(
+                @ModelAttribute("searchForm") TenantSearchForm form, // 直接放在这里
+                @PageableDefault(size = 10) Pageable pageable,
+                Model model
+        ) {
+            Page<Map<String, Object>> page = tenantService.list(form.getKeyword(), pageable);
+
+            model.addAttribute("page", page);
+            model.addAttribute("tenants", page.getContent());
+
+            return "system-tenant-list";
+        }
+
+
+    /** GET — 显示创建表单 */
+    @GetMapping("/system/tenants/create")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    public String showCreateForm(Model model) {
+        model.addAttribute("form", new TenantCreateForm());
+        return "system-tenants-create";
+    }
+
+    /** POST — 提交创建 */
+    @PostMapping("system/tenant/create")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    public String createTenant(
+            @ModelAttribute("form") TenantCreateForm form
+    ) {
+        tenantService.createTenant(form.getName());
+        return "redirect:/system/tenants";  // 创建成功后跳回租户列表
+    }
 
 
 }

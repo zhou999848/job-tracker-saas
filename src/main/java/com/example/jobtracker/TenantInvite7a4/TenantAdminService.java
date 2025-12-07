@@ -119,6 +119,7 @@ public class TenantAdminService {
 
         // 返回给前端
         return new InviteInfoResp(
+             invite.getId(),
                 invite.getEmail(),
                 tenant.getName(),
                 invite.getRole(),
@@ -139,7 +140,7 @@ public class TenantAdminService {
     public InviteInfoResp previewInvite(String token) {
         TenantInvite i = invites.findByToken(requireToken(token))
                 .orElseThrow(() -> new NoSuchElementException("Invalid token"));
-        return new InviteInfoResp(i.getEmail(), i.getTenant().getName(), i.getRole(), i.getExpiresAt(), i.isUsed(),
+        return new InviteInfoResp(i.getId(),i.getEmail(), i.getTenant().getName(), i.getRole(), i.getExpiresAt(), i.isUsed(),
                  i.getToken());
       //  "https://localhost:8080/signup?token=" +
     }
@@ -390,6 +391,7 @@ public class TenantAdminService {
     public List<InviteInfoResp> listInvites(UUID tenantId) {
         return invites.findByTenant_Id(tenantId).stream()
                 .map(i -> new InviteInfoResp(
+                       i.getId(),
                         i.getEmail(),
                         i.getTenant().getName(),
                         i.getRole(),
@@ -398,6 +400,25 @@ public class TenantAdminService {
                         i.getToken()
                 ))
                 .toList();
+    }
+
+
+    //删除邀请记录
+
+    @Transactional
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public void removeInvite(UUID tenantId, UUID inviteId) {
+
+        TenantGuard.requireSameTenant(tenantId);
+
+        TenantInvite invite = invites.findById(inviteId)
+                .orElseThrow(() -> new NoSuchElementException("Invite not found"));
+
+        if (!invite.getTenant().getId().equals(tenantId)) {
+            throw new IllegalArgumentException("Invite not in this tenant");
+        }
+
+        invites.delete(invite); // 直接删
     }
 
 

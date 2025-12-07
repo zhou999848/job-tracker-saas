@@ -11,6 +11,9 @@
         .pagination { margin-top: 20px; }
     </style>
 </head>
+<div th:if="${ok}" style="color: green; font-weight: bold;">
+    <p th:text="${ok}"></p>
+</div>
 <body>
 <h2>邀请成员</h2>
 
@@ -38,7 +41,7 @@
     <button type="submit">发送邀请</button>
 
 </form>
-<a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}" th:text="#{addJob.link.back}">Return to user List</a>
+<a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}" >返回成员列表</a>
 
 </body>
 </html>

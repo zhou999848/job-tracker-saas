@@ -9,7 +9,13 @@
 <!-- 多语言切换（保留你的片段引入；去除重复） -->
 <div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
-<h1 th:text="#{page.note}">note</h1>
+<h2>
+    笔记列表
+    <span style="color:#666; font-size:14px;">
+        （共 <span th:text="${totalNotes}">0</span> 条）
+    </span>
+</h2>
+
 
 <!-- 没有笔记 -->
 <div th:if="${#lists.isEmpty(notes)}">
