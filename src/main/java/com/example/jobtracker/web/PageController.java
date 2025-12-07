@@ -773,7 +773,7 @@ this.tenantAdminService = tenantAdminService;
 
    tenantProfileService.rename(tenantId, form.getNewName());
 
-        return "redirect:/tenants/" + tenantId + "/members";
+        return "redirect:/system/tenants";
     }
 
     @GetMapping("/tenants/{tenantId}/invitesList")
@@ -806,8 +806,15 @@ this.tenantAdminService = tenantAdminService;
 
             model.addAttribute("page", page);
             model.addAttribute("tenants", page.getContent());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", page.getTotalPages());
+        model.addAttribute("pageSize", pageable.getPageSize());
+        model.addAttribute("keyword", form.getKeyword());
+        model.addAttribute("totalTenants",page.getTotalElements()); // 回传表单数据
 
-            return "system-tenant-list";
+
+
+        return "system-tenant-list";
         }
 
 

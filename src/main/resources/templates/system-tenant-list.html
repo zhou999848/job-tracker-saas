@@ -7,61 +7,183 @@
 <body>
 
 
-<h2>Tenant List</h2>
+<h2>
+    租户列表
+    <span style="color:#666; font-size:14px;">
+        （共 <span th:text="${totalTenants}">0</span> 个）
+    </span>
+</h2>
+<style>
+    .table-like {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 14px;
+        color: #333;
+    }
 
+    .table-like th,
+    .table-like td {
+        border: 1px solid #888;
+        padding: 6px 8px;
+        text-align: center; /* ← 新增居中 */
+    }
+
+    .table-like th {
+        font-weight: bold;
+        background: #f9f9f9;
+    }
+
+    .action-link {
+        color: #0066cc;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .action-link:hover {
+        text-decoration: underline;
+    }
+
+    .btn-delete-member {
+        border: none;
+        background: none;
+        color: #0066cc;
+        cursor: pointer;
+        padding: 0;
+        font-size: 14px;
+    }
+    .btn-delete-member:hover {
+        text-decoration: underline;
+    }
+    .action-btn {
+        padding: 4px 8px;
+        border: 1px solid #ccc;
+        background: #f8f8f8;
+        cursor: pointer;
+    }
+    /* 让搜索区域排成一行并靠右 */
+    .search-bar-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    /* Create New Tenant 的样式 */
+    .create-tenant-link {
+        font-weight: bold;
+        color: #0066cc;
+        text-decoration: none;
+    }
+    .create-tenant-link:hover {
+        text-decoration: underline;
+    }
+
+    /* 表格列宽固定，提高可读性 */
+    .table-like th:nth-child(1) { width: 200px; }
+    .table-like th:nth-child(2) { width: 120px; }
+    .table-like th:nth-child(3) { width: 100px; }
+    .table-like th:nth-child(4) { width: 200px; }
+
+    /* 状态颜色标签 */
+    .tag-active {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .tag-suspended {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+
+</style>
 
 <form th:object="${searchForm}" th:action="@{/system/tenants}" method="get" >
     <input type="text" th:field="*{keyword}" placeholder="Search tenant name">
     <button type="submit">Search</button>
+    <!-- 返回租户列表-->
+    <a href="/system/tenants" style="margin-left: 10px;">返回全部</a>
+
 </form>
+
+
 <a th:href="@{/system/tenants/create}">Create New Tenant</a>
 
-<table border="1" cellspacing="0" cellpadding="8">
-    <thead>
-    <tr>
-        <th>Name</th>
-        <th>Status</th>
-        <th>Members</th>
-        <th>Actions</th>
-        <th>aa</th>
-    </tr>
-    </thead>
+        <table class="table-like">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Members</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
 
-    <tbody>
-    <tr th:each="t : ${tenants}">
-        <td th:text="${t.name}"></td>
-        <td th:text="${t.status}"></td>
-        <td th:text="${t.memberCount}"></td>
-        <td th:text="${t}"></td>
-        <td>
-            <!-- 重命名按钮 -->
-            <form th:action="@{/tenants/{id}/rename(id=${tenantId})}"
-                  method="get"
-                  style="display:inline-block; margin-left:8px;">
-                <button type="submit">重命名</button>
-            </form>
-              <!-- 封禁/解封按钮 -->
-            <button type="button"
-                    th:if="${t['status'].toString() == 'ACTIVE'}"
-                    th:data-id="${t['id']}"
-                    onclick="suspendTenant(this.dataset.id)">
-            封禁
-           </button>
+            <tbody>
+            <tr th:each="t : ${tenants}">
 
-            <button type="button"
-                    th:if="${t['status'].toString() == 'SUSPENDED'}"
-                    th:data-id="${t['id']}"
-                    onclick="resumeTenant(this.dataset.id)">
-                解封
-            </button>
+                <td th:text="${t.name}"></td>
 
-        </td>
+                <!-- 状态颜色标签 -->
+                <td>
+            <span th:class="${t.status.toString() == 'ACTIVE'} ? 'tag-active' : 'tag-suspended'"
+                  th:text="${t.status}">
+            </span>
+                </td>
+
+                <td th:text="${t.memberCount}"></td>
+
+                <td>
+
+                    <!-- 重命名 -->
+                    <a class="action-link"
+                       th:href="@{|/tenants/${t['id']}/rename|}">
+                        重命名
+                    </a>
+
+                    |
+
+                    <!-- 封禁 -->
+                    <a class="action-link"
+                       href="javascript:void(0)"
+                       th:if="${t['status'].toString() == 'ACTIVE'}"
+                       th:data-id="${t['id']}"
+                       onclick="suspendTenant(this.dataset.id)">
+                        封禁
+                    </a>
+
+                    <!-- 解封 -->
+                    <a class="action-link"
+                       href="javascript:void(0)"
+                       th:if="${t['status'].toString() == 'SUSPENDED'}"
+                       th:data-id="${t['id']}"
+                       onclick="resumeTenant(this.dataset.id)">
+                        解封
+                    </a>
+
+                </td>
+
+            </tr>
+            </tbody>
+        </table>
+
+<div class="pagination">
+    <a th:if="${page.number > 0}"
+       th:href="@{/system/tenants(page=${page.number - 1}, size=${page.size}, keyword=${searchForm.keyword})}">
+        上一页
+    </a>
+
+    <span>
+        第 <span th:text="${page.number + 1}"></span> 页 /
+        共 <span th:text="${page.totalPages}"></span> 页
+    </span>
+
+    <a th:if="${page.number < page.totalPages - 1}"
+       th:href="@{/system/tenants(page=${page.number + 1}, size=${page.size}, keyword=${searchForm.keyword})}">
+        下一页
+    </a>
+</div>
 
 
-
-    </tr>
-    </tbody>
-</table>
+<a href="/jobs" style="margin-left: 10px;">返回职位页面</a>
 <script>
     async function suspendTenant(tenantId) {
         if (!confirm("确定要封禁该租户吗？")) return;
