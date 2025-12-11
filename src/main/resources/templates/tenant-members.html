@@ -1,120 +1,70 @@
-
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
-    <title>Tenant Members</title>
+    <title th:text="#{tenant.members.title}">Tenant Members</title>
 </head>
 
 <body>
-<!-- ======= 成员表格（与 Job 表格风格一致） ======= -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
 <style>
-    .table-like {
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 14px;
-        color: #333;
-    }
-
-    .table-like th,
-    .table-like td {
-        border: 1px solid #888;
-        padding: 6px 8px;
-        text-align: center; /* ← 新增居中 */
-    }
-
-    .table-like th {
-        font-weight: bold;
-        background: #f9f9f9;
-    }
-
-    .action-link {
-        color: #0066cc;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    .action-link:hover {
-        text-decoration: underline;
-    }
-
-    .btn-delete-member {
-        border: none;
-        background: none;
-        color: #0066cc;
-        cursor: pointer;
-        padding: 0;
-        font-size: 14px;
-    }
-    .btn-delete-member:hover {
-        text-decoration: underline;
-    }
+    .table-like { border-collapse: collapse; width: 100%; font-size: 14px; color: #333; }
+    .table-like th, .table-like td { border: 1px solid #888; padding: 6px 8px; text-align: center; }
+    .table-like th { font-weight: bold; background: #f9f9f9; }
+    .action-link { color: #0066cc; text-decoration: none; cursor: pointer; }
+    .action-link:hover { text-decoration: underline; }
+    .btn-delete-member { border: none; background: none; color: #0066cc; cursor: pointer; padding: 0; font-size: 14px; }
+    .btn-delete-member:hover { text-decoration: underline; }
 </style>
 
-
-
-<!-- ===================== 登录用户可见区域 ===================== -->
 <div sec:authorize="isAuthenticated()">
-
-    <!-- 租户名 -->
-    <span th:text="'租户名：' + ${tenantName}">
-        租户名：默认
+    <span>
+        <span th:text="#{tenant.name.label}">租户名：</span>
+        <b th:text="${tenantName}">默认</b>
     </span>
-
-    <!-- 重命名按钮 -->
-   <!-- <form th:action="@{/tenants/{id}/rename(id=${tenantId})}"
-          method="get"
-          style="display:inline-block; margin-left:8px;">
-        <button type="submit">重命名</button>
-    </form>-->
-
 </div>
 
-<!-- ===================== 页面标题 + 总人数 ===================== -->
 <h2>
-    租户成员列表
+    <span th:text="#{tenant.members.heading}">租户成员列表</span>
     <span style="color:#666; font-size:14px;">
-        （共 <span th:text="${totalMembers}">0</span> 人）
+        （<span th:text="#{tenant.members.total(${totalMembers})}">共 0 人</span>）
     </span>
-    <!-- 邀请新成员按钮 -->
+
     <form th:action="@{|/tenants/${tenantId}/invite|}"
           method="get"
           style="display:inline-block; margin-left:8px;">
-        <button type="submit">邀请新成员</button>
+        <button type="submit" th:text="#{tenant.members.invite}">邀请新成员</button>
     </form>
 </h2>
 
-<!-- 注册新成员链接 -->
-<a th:href="@{/register}">注册新成员</a><br>
-
-
+<a th:href="@{/register}" th:text="#{tenant.members.registerNew}">注册新成员</a><br>
 
 <table class="table-like">
     <thead>
     <tr>
-        <th>序号</th>
-        <!--<th>User ID</th>-->
-        <th>Username</th>
-        <th>Role</th>
-        <th>操作</th>
+        <th th:text="#{table.index}">序号</th>
+        <th th:text="#{table.username}">Username</th>
+        <th th:text="#{table.role}">Role</th>
+        <th th:text="#{table.actions}">操作</th>
     </tr>
     </thead>
 
     <tbody>
     <tr th:each="m, stat : ${members}">
         <td th:text="${pageSize * currentPage + stat.index + 1}"></td>
-
-       <!-- <td th:text="${m.userId}"></td>-->
         <td th:text="${m.username}"></td>
         <td th:text="${m.role}"></td>
 
         <td>
             <a class="action-link"
-               th:href="@{|/tenants/${tenantId}/members/${m.userId}/role|}">
+               th:href="@{|/tenants/${tenantId}/members/${m.userId}/role|}"
+               th:text="#{tenant.members.changeRole}">
                 变更角色
             </a>
             |
             <button class="btn-delete-member"
+                    th:text="#{tenant.members.delete}"
                     th:attr="data-user-id=${m.userId}, data-tenant-id=${tenantId}">
                 删除
             </button>
@@ -123,21 +73,14 @@
     </tbody>
 </table>
 
-
-<!-- ===================== 分页 ===================== -->
 <div class="pagination" style="margin-top: 15px;">
-
-    <!-- 上一页 -->
     <span th:if="${currentPage > 0}">
         <a th:href="@{|/tenants/${tenantId}/members?page=${currentPage - 1}|}"
-           th:text="#{pagination.prev}">
-            上一页
-        </a>
+           th:text="#{pagination.prev}">上一页</a>
     </span>
 
     &nbsp;
 
-    <!-- 当前页 -->
     <span>
         <span th:text="#{pagination.page}">第</span>
         <span th:text="${currentPage + 1}">1</span>
@@ -146,7 +89,6 @@
 
     &nbsp;
 
-    <!-- 总页数 -->
     <span>
         <span th:text="#{pagination.total}">共</span>
         <span th:text="${totalPages}">1</span>
@@ -155,36 +97,30 @@
 
     &nbsp;
 
-    <!-- 下一页 -->
     <span th:if="${currentPage + 1 < totalPages}">
         <a th:href="@{|/tenants/${tenantId}/members?page=${currentPage + 1}|}"
-           th:text="#{pagination.next}">
-            下一页
-        </a>
+           th:text="#{pagination.next}">下一页</a>
     </span>
 </div>
 
-<!-- 返回职位列表 -->
-<a th:href="@{/jobs}">返回职位列表</a>
+<a th:href="@{/jobs}" th:text="#{link.backToJobs}">返回职位列表</a>
 
-<!-- ===================== 删除功能脚本 ===================== -->
 <script src="/js/api.js"></script>
 
-<script>
+<script th:inline="javascript">
     const I18N = {
-        notFoundId: "ID 不存在",
-        confirmDelete: "确定删除吗？",
-        unauthorized: "未登录或会话过期",
-        forbidden: "没有权限",
-        deleteFail: "删除失败",
-        deleteOk: "删除成功",
-        netOrScriptErr: "网络/脚本错误"
+        notFoundId: /*[[#{alert.notFoundId}]]*/ 'ID 不存在',
+        confirmDelete: /*[[#{alert.confirmDelete}]]*/ '确定删除吗？',
+        unauthorized: /*[[#{alert.unauthorized}]]*/ '未登录或会话过期',
+        forbidden: /*[[#{alert.forbidden}]]*/ '没有权限',
+        deleteFail: /*[[#{alert.deleteFail}]]*/ '删除失败',
+        deleteOk: /*[[#{alert.deleteOk}]]*/ '删除成功',
+        netOrScriptErr: /*[[#{alert.netOrScriptErr}]]*/ '网络/脚本错误'
     };
 </script>
 
 <script>
     document.addEventListener('click', async (e) => {
-
         const btn = e.target.closest('.btn-delete-member');
         if (!btn) return;
 
@@ -195,42 +131,22 @@
             alert(I18N.notFoundId);
             return;
         }
-
         if (!confirm(I18N.confirmDelete)) return;
 
         const url = `/api/admin/tenants/${tenantId}/members/${userId}`;
 
         try {
-            const res = await fetch(url, {
-                method: 'DELETE',
-                credentials: 'same-origin',
-                headers: { "Accept": "application/json" }
-            });
+            const res = await fetch(url, { method: 'DELETE', credentials:'same-origin' });
 
-            if (res.status === 401) {
-                alert(I18N.unauthorized);
-                return;
-            }
+            if (res.status === 401) return alert(I18N.unauthorized);
+            if (res.status === 403) return alert(I18N.forbidden);
+            if (!res.ok) return alert(I18N.deleteFail);
 
-            if (res.status === 403) {
-                const msg = await res.text().catch(() => '');
-                alert(I18N.forbidden + '\n' + msg);
-                return;
-            }
-
-            if (!res.ok) {
-                const text = await res.text().catch(() => '');
-                alert(`❌ ${I18N.deleteFail}: HTTP ${res.status}\n${text}`);
-                return;
-            }
-
-            // 删除成功，移除行
             btn.closest('tr')?.remove();
-            alert('✅ ' + I18N.deleteOk);
+            alert(I18N.deleteOk);
 
         } catch (err) {
-            console.error(err);
-            alert(`❌ ${I18N.netOrScriptErr}: ${err?.message || err}`);
+            alert(I18N.netOrScriptErr);
         }
     });
 </script>
@@ -239,3 +155,4 @@
 
 </body>
 </html>
+

@@ -2,52 +2,50 @@
 <html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale}">
 <head>
     <meta charset="UTF-8">
-    <title th:text="#{page.register.title}">用户注册</title>
+    <title th:text="#{page.register.title}">User Register</title>
 </head>
 <body>
 
 <div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
-<h2 th:text="#{page.register.heading}">注册新用户</h2>
+<h2 th:text="#{page.register.heading}">Register New User</h2>
 
 <form th:action="@{/register}" method="post" th:object="${userDto}">
 
     <div>
-        <label for="username" th:text="#{form.username}">用户名:</label>
+        <label for="username" th:text="#{form.username}">Username:</label>
         <input type="text" id="username" th:field="*{username}"
-               placeholder="请输入用户名" th:placeholder="#{form.username.placeholder}" required/>
+               th:placeholder="#{form.username.placeholder}" placeholder="Enter username" required/>
     </div>
 
     <div>
-        <label for="password" th:text="#{form.password}">密码:</label>
+        <label for="password" th:text="#{form.password}">Password:</label>
         <input type="password" id="password" th:field="*{password}"
-               placeholder="请输入密码" th:placeholder="#{form.password.placeholder}" required/>
+               th:placeholder="#{form.password.placeholder}" placeholder="Enter password" required/>
     </div>
 
     <div>
-        <label for="role" th:text="#{form.role}">角色:</label>
+        <label for="role" th:text="#{form.role}">Role:</label>
         <select id="role" th:field="*{role}">
-            <option value="USER">USER</option>
-            <option value="TENANT_ADMIN">TENANT_ADMIN</option>
-            <option value="SYSTEM_ADMIN">SYSTEM_ADMIN</option>
+            <option value="USER" th:text="#{role.user}">USER</option>
+            <option value="TENANT_ADMIN" th:text="#{role.tenantAdmin}">TENANT_ADMIN</option>
+            <option value="SYSTEM_ADMIN" th:text="#{role.systemAdmin}">SYSTEM_ADMIN</option>
         </select>
     </div>
 
-    <button type="submit" th:text="#{form.submit.register}">注册</button>
+    <button type="submit" th:text="#{form.submit.register}">Register</button>
 
     <div th:if="${ok}" th:text="${ok}" style="color: green"></div>
 
     <div th:if="${#fields.hasErrors('*')}" style="color: red">
-        <p th:each="e : ${#fields.errors('*')}" th:text="${e}">错误</p>
+        <p th:each="e : ${#fields.errors('*')}" th:text="${e}">Error</p>
     </div>
 </form>
 
 <hr/>
 
-<a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}">
-    返回成员列表
-</a>
+<a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}"
+   th:text="#{link.backToMembers}">Back to Members</a>
 
 </body>
 </html>
-

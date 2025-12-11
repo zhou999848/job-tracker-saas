@@ -2,21 +2,27 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Create Tenant</title>
+    <title th:text="#{tenant.create.title}">Create Tenant</title>
 </head>
-<body>
 
-<h2>Create Tenant</h2>
+<body>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{tenant.create.heading}">Create Tenant</h2>
 
 <form th:action="@{/system/tenants/create}" th:object="${form}" method="post">
-    <label>Tenant Name:</label><br>
-    <input type="text" th:field="*{name}" placeholder="Enter tenant name" required>
+    <label th:text="#{tenant.name}">Tenant Name:</label><br>
+    <input type="text" th:field="*{name}" th:placeholder="#{tenant.name.placeholder}" required>
     <br><br>
-    <button type="submit">Create</button>
+
+    <button type="submit" th:text="#{form.create}">Create</button>
 </form>
 
 <br>
-<a th:href="@{/system/tenants}">Back to Tenant List</a>
+
+<a th:href="@{/system/tenants}" th:text="#{link.backToTenantList}">
+    Back to Tenant List
+</a>
 
 </body>
 </html>

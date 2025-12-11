@@ -2,27 +2,34 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>重命名租户</title>
+    <title th:text="#{tenant.rename.title}">重命名租户</title>
 </head>
-<body>
 
-<h2>重命名租户</h2>
+<body>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{tenant.rename.heading}">重命名租户</h2>
 
 <form th:action="@{|/tenants/${tenantId}/rename|}"
       th:object="${form}"
       method="post">
 
-    <label>新名称：
+    <label>
+        <span th:text="#{tenant.rename.newName}">新名称：</span>
         <input type="text" th:field="*{newName}" required maxlength="100"/>
     </label>
 
     <br/><br/>
-    <button type="submit">保存</button>
+
+    <button type="submit" th:text="#{form.save}">保存</button>
 
 </form>
 
 <br/>
-<a th:href="@{/system/tenants}">返回租户列表</a>
+
+<a th:href="@{/system/tenants}" th:text="#{link.backToTenantList}">
+    返回租户列表
+</a>
 
 </body>
 </html>

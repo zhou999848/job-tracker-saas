@@ -10,11 +10,12 @@
 <div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
 <h2>
-    笔记列表
+    <span th:text="#{note.list}">笔记列表</span>
     <span style="color:#666; font-size:14px;">
-        （共 <span th:text="${totalNotes}">0</span> 条）
+        （<span th:text="#{note.count(${totalNotes})}">共 0 条</span>）
     </span>
 </h2>
+
 
 
 <!-- 没有笔记 -->

@@ -2,46 +2,44 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Tenant Members</title>
-    <style>
-        body { font-family: sans-serif; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #f3f3f3; }
-        .pagination { margin-top: 20px; }
-    </style>
+    <title th:text="#{tenant.invite.title}">邀请成员</title>
 </head>
+
+<body>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{tenant.invite.heading}">邀请成员</h2>
+
 <div th:if="${ok}" style="color: green; font-weight: bold;">
     <p th:text="${ok}"></p>
 </div>
-<body>
-<h2>邀请成员</h2>
 
-<form th:action="@{|/tenants/${tenantId}/invite|}" method="post"
+<form th:action="@{|/tenants/${tenantId}/invite|}"
+      method="post"
       th:object="${inviteForm}">
 
-    <label>Email:
-        <input type="email" th:field="*{email}" required>
-    </label>
+    <label th:text="#{form.email}">Email</label>:
+    <input type="email" th:field="*{email}" required>
     <br><br>
 
-    <label>Role:
-        <select th:field="*{role}">
-            <option value="USER">USER</option>
-            <option value="TENANT_ADMIN">TENANT_ADMIN</option>
-        </select>
-    </label>
+    <label th:text="#{form.role}">Role</label>:
+    <select th:field="*{role}">
+        <option value="USER" th:text="#{role.user}">USER</option>
+        <option value="TENANT_ADMIN" th:text="#{role.tenantAdmin}">TENANT_ADMIN</option>
+    </select>
     <br><br>
 
-    <label>有效期（天）:
-        <input type="number" th:field="*{daysToExpire}" min="1" max="365" value="7">
-    </label>
+    <label th:text="#{form.expireDays}">有效期（天）</label>:
+    <input type="number" th:field="*{daysToExpire}" min="1" max="365">
     <br><br>
 
-    <button type="submit">发送邀请</button>
-
+    <button type="submit" th:text="#{tenant.invite.send}">发送邀请</button>
 </form>
-<a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}" >返回成员列表</a>
+
+<a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}"
+   th:text="#{link.backToMembers}">
+    返回成员列表
+</a>
 
 </body>
 </html>

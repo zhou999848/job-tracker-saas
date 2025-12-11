@@ -12,7 +12,8 @@ import java.util.UUID;
 public class JobApplicationDto {
 
     @Id
-    private UUID id= UUID.randomUUID();
+   // private UUID id= UUID.randomUUID();  //乐观锁错误
+    private UUID id;
 
    @NotBlank(message="company cannot be blank")
     private String company;

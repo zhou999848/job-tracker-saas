@@ -89,7 +89,7 @@ public class JobApplicationService {
 
         // 组装实体
         JobApplication job = new JobApplication();
-        job.setId(dto.getId());              // 新建可不设，由 DB 生成
+       job.setId(dto.getId());              // 新建可不设，由 DB 生成
         job.setCompany(dto.getCompany());
         job.setPosition(dto.getPosition());
         job.setStatus(dto.getStatus());

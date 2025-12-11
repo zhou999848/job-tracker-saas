@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-
 <head>
     <meta charset="UTF-8">
-    <title>邀请记录</title>
+    <title th:text="#{invite.list.title}">邀请记录</title>
 </head>
 
 <body>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
-<h2>邀请记录列表</h2>
+<h2 th:text="#{invite.list.heading}">邀请记录列表</h2>
 
 <table border="1" cellpadding="6">
     <thead>
     <tr>
-        <th>Email</th>
-        <th>角色</th>
-        <th>过期时间</th>
-        <th>状态</th>
-        <th>邀请链接</th>
-        <th>操作</th>
+        <th th:text="#{invite.email}">Email</th>
+        <th th:text="#{invite.role}">角色</th>
+        <th th:text="#{invite.expireAt}">过期时间</th>
+        <th th:text="#{invite.status}">状态</th>
+        <th th:text="#{invite.link}">邀请链接</th>
+        <th th:text="#{invite.actions}">操作</th>
     </tr>
     </thead>
 
@@ -28,28 +28,28 @@
         <td th:text="${i.role}"></td>
         <td th:text="${#dates.format(i.expiresAt, 'yyyy-MM-dd HH:mm')}"></td>
 
-        <!-- 状态逻辑 -->
         <td>
-            <span th:if="${i.used}">已使用</span>
-            <span th:if="${!i.used and i.expiresAt.isBefore(T(java.time.Instant).now())}">
+            <span th:if="${i.used}" th:text="#{invite.status.used}">已使用</span>
+            <span th:if="${!i.used and i.expiresAt.isBefore(T(java.time.Instant).now())}"
+                  th:text="#{invite.status.expired}">
                 已过期
             </span>
-            <span th:if="${!i.used and i.expiresAt.isAfter(T(java.time.Instant).now())}">
+            <span th:if="${!i.used and i.expiresAt.isAfter(T(java.time.Instant).now())}"
+                  th:text="#{invite.status.unused}">
                 未使用
             </span>
         </td>
 
-            <!-- 邀请链接 -->
         <td>
             <input type="text"
                    th:value="@{'/invite/accept?token=' + ${i.inviteToken}}"
-                   readonly
-                   style="width:260px;">
+                   readonly style="width:260px;">
         </td>
 
         <td>
             <button class="btn-delete-invite"
-                    th:attr="data-invite-id=${i.id}, data-tenant-id=${tenantId}">
+                    th:attr="data-invite-id=${i.id}, data-tenant-id=${tenantId}"
+                    th:text="#{invite.delete}">
                 删除
             </button>
         </td>
@@ -58,16 +58,20 @@
 </table>
 
 <br>
-<a th:href="@{/tenants/{id}/members(id=${tenantId})}">返回成员列表</a>
 
-<script>
+<a th:href="@{/tenants/{id}/members(id=${tenantId})}"
+   th:text="#{link.backToMembers}">
+    返回成员列表
+</a>
+
+<script th:inline="javascript">
     const I18N_INVITE = {
-        confirmDelete: "确认删除此邀请记录？",
-        deleteOk: "删除成功",
-        deleteFail: "删除失败",
-        unauthorized: "未登录或会话过期",
-        forbidden: "没有权限",
-        netOrScriptErr: "网络/脚本错误"
+        confirmDelete: /*[[#{alert.invite.confirmDelete}]]*/ "确认删除此邀请记录？",
+        deleteOk: /*[[#{alert.deleteOk}]]*/ "删除成功",
+        deleteFail: /*[[#{alert.deleteFail}]]*/ "删除失败",
+        unauthorized: /*[[#{alert.unauthorized}]]*/ "未登录或会话过期",
+        forbidden: /*[[#{alert.forbidden}]]*/ "没有权限",
+        netOrScriptErr: /*[[#{alert.netOrScriptErr}]]*/ "网络/脚本错误"
     };
 </script>
 
@@ -79,46 +83,28 @@
         const inviteId = btn.dataset.inviteId;
         const tenantId = btn.dataset.tenantId;
 
-        // 1. 确认删除
         if (!confirm(I18N_INVITE.confirmDelete)) return;
 
         const url = `/api/admin/tenants/${tenantId}/invites/${inviteId}`;
 
         try {
             const res = await fetch(url, {
-                method: 'DELETE',
-                credentials: 'same-origin',
-                headers: {
-                    "Accept": "application/json"
-                }
+                method: "DELETE",
+                credentials: "same-origin"
             });
 
-            // 401 未认证
-            if (res.status === 401) {
-                alert(I18N_INVITE.unauthorized);
-                return;
-            }
-
-            // 403 无权限
-            if (res.status === 403) {
-                const msg = await res.text().catch(() => '');
-                alert(I18N_INVITE.forbidden + "\n" + msg);
-                return;
-            }
-
-            // DELETE 成功（一般是 204 No Content）
             if (res.ok) {
-                btn.closest('tr')?.remove();
-                alert('✅ ' + I18N_INVITE.deleteOk);
+                btn.closest("tr")?.remove();
+                alert(I18N_INVITE.deleteOk);
                 return;
             }
 
-            // 其他失败情况
-            const text = await res.text().catch(() => '');
-            alert(`❌ ${I18N_INVITE.deleteFail}: HTTP ${res.status}\n${text}`);
+            if (res.status === 401) return alert(I18N_INVITE.unauthorized);
+            if (res.status === 403) return alert(I18N_INVITE.forbidden);
 
+            alert(I18N_INVITE.deleteFail);
         } catch (err) {
-            alert(`❌ ${I18N_INVITE.netOrScriptErr}: ${err?.message || err}`);
+            alert(I18N_INVITE.netOrScriptErr);
         }
     });
 </script>

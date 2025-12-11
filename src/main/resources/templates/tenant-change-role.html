@@ -2,30 +2,35 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>变更用户角色</title>
+    <title th:text="#{tenant.role.change.title}">变更用户角色</title>
 </head>
-<body>
 
-<h2>变更用户角色</h2>
+<body>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{tenant.role.change.heading}">变更用户角色</h2>
 
 <form th:action="@{|/tenants/${tenantId}/members/${userId}/role|}"
       th:object="${form}"
       method="post">
 
-    <label>新角色：
+    <label>
+        <span th:text="#{form.newRole}">新角色：</span>
         <select th:field="*{newRole}">
-            <option value="USER">普通用户 USER</option>
-            <option value="TENANT_ADMIN">租户管理员 TENANT_ADMIN</option>
-            <option value="SYSTEM_ADMIN">系统管理员 SYSTEM_ADMIN</option>
+            <option value="USER" th:text="#{role.userFull}">普通用户 USER</option>
+            <option value="TENANT_ADMIN" th:text="#{role.tenantAdminFull}">租户管理员 TENANT_ADMIN</option>
+            <option value="SYSTEM_ADMIN" th:text="#{role.systemAdminFull}">系统管理员 SYSTEM_ADMIN</option>
         </select>
     </label>
 
     <br/><br/>
-    <button type="submit">保存</button>
+
+    <button type="submit" th:text="#{form.save}">保存</button>
 </form>
 
-<br/>
-<a th:href="@{|/tenants/${tenantId}/members|}">返回成员列表</a>
+<a th:href="@{|/tenants/${tenantId}/members|}" th:text="#{link.backToMembers}">
+    返回成员列表
+</a>
 
 </body>
 </html>

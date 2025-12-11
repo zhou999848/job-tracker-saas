@@ -2,219 +2,187 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Tenant List</title>
+    <title th:text="#{tenant.system.title}">租户列表</title>
 </head>
+
 <body>
-
-
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+<style>
+    .table-like { border-collapse: collapse; width: 100%; font-size: 14px; color: #333; }
+    .table-like th, .table-like td { border: 1px solid #888; padding: 6px 8px; text-align: center; }
+    .table-like th { font-weight: bold; background: #f9f9f9; }
+    .action-link { color: #0066cc; text-decoration: none; cursor: pointer; }
+    .action-link:hover { text-decoration: underline; }
+    .btn-delete-member { border: none; background: none; color: #0066cc; cursor: pointer; padding: 0; font-size: 14px; }
+    .btn-delete-member:hover { text-decoration: underline; }
+</style>
 <h2>
-    租户列表
+    <span th:text="#{tenant.system.heading}">租户列表</span>
     <span style="color:#666; font-size:14px;">
-        （共 <span th:text="${totalTenants}">0</span> 个）
+        （<span th:text="#{tenant.system.total(${totalTenants})}">共 0 个</span>）
     </span>
 </h2>
-<style>
-    .table-like {
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 14px;
-        color: #333;
-    }
 
-    .table-like th,
-    .table-like td {
-        border: 1px solid #888;
-        padding: 6px 8px;
-        text-align: center; /* ← 新增居中 */
-    }
-
-    .table-like th {
-        font-weight: bold;
-        background: #f9f9f9;
-    }
-
-    .action-link {
-        color: #0066cc;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    .action-link:hover {
-        text-decoration: underline;
-    }
-
-    .btn-delete-member {
-        border: none;
-        background: none;
-        color: #0066cc;
-        cursor: pointer;
-        padding: 0;
-        font-size: 14px;
-    }
-    .btn-delete-member:hover {
-        text-decoration: underline;
-    }
-    .action-btn {
-        padding: 4px 8px;
-        border: 1px solid #ccc;
-        background: #f8f8f8;
-        cursor: pointer;
-    }
-    /* 让搜索区域排成一行并靠右 */
-    .search-bar-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-
-    /* Create New Tenant 的样式 */
-    .create-tenant-link {
-        font-weight: bold;
-        color: #0066cc;
-        text-decoration: none;
-    }
-    .create-tenant-link:hover {
-        text-decoration: underline;
-    }
-
-    /* 表格列宽固定，提高可读性 */
-    .table-like th:nth-child(1) { width: 200px; }
-    .table-like th:nth-child(2) { width: 120px; }
-    .table-like th:nth-child(3) { width: 100px; }
-    .table-like th:nth-child(4) { width: 200px; }
-
-    /* 状态颜色标签 */
-    .tag-active {
-        color: #28a745;
-        font-weight: bold;
-    }
-    .tag-suspended {
-        color: #dc3545;
-        font-weight: bold;
-    }
-
-
-</style>
-
-<form th:object="${searchForm}" th:action="@{/system/tenants}" method="get" >
-    <input type="text" th:field="*{keyword}" placeholder="Search tenant name">
-    <button type="submit">Search</button>
-    <!-- 返回租户列表-->
-    <a href="/system/tenants" style="margin-left: 10px;">返回全部</a>
-
+<form th:object="${searchForm}" th:action="@{/system/tenants}" method="get">
+    <input type="text" th:field="*{keyword}" th:placeholder="#{tenant.search.placeholder}">
+    <button type="submit" th:text="#{search.button}">搜索</button>
+    <a th:href="@{/system/tenants}" th:text="#{tenant.search.reset}" style="margin-left:10px;">返回全部</a>
 </form>
 
+<a th:href="@{/system/tenants/create}" th:text="#{tenant.create}">Create New Tenant</a>
 
-<a th:href="@{/system/tenants/create}">Create New Tenant</a>
+<table class="table-like">
+    <thead>
+    <tr>
+        <th th:text="#{tenant.name}">Name</th>
+        <th th:text="#{tenant.status}">Status</th>
+        <th th:text="#{tenant.members.count}">Members</th>
+        <th th:text="#{table.actions}">操作</th>
+    </tr>
+    </thead>
 
-        <table class="table-like">
-            <thead>
-            <tr>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Members</th>
-                <th>Actions</th>
-            </tr>
-            </thead>
+    <tbody>
+    <tr th:each="t : ${tenants}">
+        <td th:text="${t.name}"></td>
 
-            <tbody>
-            <tr th:each="t : ${tenants}">
-
-                <td th:text="${t.name}"></td>
-
-                <!-- 状态颜色标签 -->
-                <td>
+        <td>
             <span th:class="${t.status.toString() == 'ACTIVE'} ? 'tag-active' : 'tag-suspended'"
-                  th:text="${t.status}">
+                  th:text="#{${'tenant.state.' + t.status.toString().toLowerCase()}}">
             </span>
-                </td>
+        </td>
 
-                <td th:text="${t.memberCount}"></td>
+        <td th:text="${t.memberCount}"></td>
 
-                <td>
+        <td>
+            <a class="action-link"
+               th:href="@{|/tenants/${t.id}/rename|}"
+               th:text="#{tenant.rename}">
+                重命名
+            </a>
+            |
 
-                    <!-- 重命名 -->
-                    <a class="action-link"
-                       th:href="@{|/tenants/${t['id']}/rename|}">
-                        重命名
-                    </a>
+            <a class="action-link"
+               href="javascript:void(0)"
+               th:if="${t.status.toString() == 'ACTIVE'}"
+               th:data-id="${t.id}"
+               onclick="suspendTenant(this.dataset.id)"
+               th:text="#{tenant.suspend}">
+                封禁
+            </a>
 
-                    |
+            <a class="action-link"
+               href="javascript:void(0)"
+               th:if="${t.status.toString() == 'SUSPENDED'}"
+               th:data-id="${t.id}"
+               onclick="resumeTenant(this.dataset.id)"
+               th:text="#{tenant.resume}">
+                解封
+            </a>
+        </td>
 
-                    <!-- 封禁 -->
-                    <a class="action-link"
-                       href="javascript:void(0)"
-                       th:if="${t['status'].toString() == 'ACTIVE'}"
-                       th:data-id="${t['id']}"
-                       onclick="suspendTenant(this.dataset.id)">
-                        封禁
-                    </a>
-
-                    <!-- 解封 -->
-                    <a class="action-link"
-                       href="javascript:void(0)"
-                       th:if="${t['status'].toString() == 'SUSPENDED'}"
-                       th:data-id="${t['id']}"
-                       onclick="resumeTenant(this.dataset.id)">
-                        解封
-                    </a>
-
-                </td>
-
-            </tr>
-            </tbody>
-        </table>
+    </tr>
+    </tbody>
+</table>
 
 <div class="pagination">
     <a th:if="${page.number > 0}"
-       th:href="@{/system/tenants(page=${page.number - 1}, size=${page.size}, keyword=${searchForm.keyword})}">
+       th:href="@{/system/tenants(page=${page.number - 1}, size=${page.size}, keyword=${searchForm.keyword})}"
+       th:text="#{pagination.prev}">
         上一页
     </a>
 
     <span>
-        第 <span th:text="${page.number + 1}"></span> 页 /
-        共 <span th:text="${page.totalPages}"></span> 页
+        <span th:text="#{pagination.page}">第</span>
+        <span th:text="${page.number + 1}"></span>
+        <span th:text="#{pagination.pageSuffix}">页</span> /
+        <span th:text="#{pagination.total}">共</span>
+        <span th:text="${page.totalPages}"></span>
+        <span th:text="#{pagination.pageSuffix}">页</span>
     </span>
 
     <a th:if="${page.number < page.totalPages - 1}"
-       th:href="@{/system/tenants(page=${page.number + 1}, size=${page.size}, keyword=${searchForm.keyword})}">
+       th:href="@{/system/tenants(page=${page.number + 1}, size=${page.size}, keyword=${searchForm.keyword})}"
+       th:text="#{pagination.next}">
         下一页
     </a>
 </div>
 
+<a th:href="@{/jobs}" style="margin-left:10px;" th:text="#{link.backToJobs}">
+    返回职位页面
+</a>
 
-<a href="/jobs" style="margin-left: 10px;">返回职位页面</a>
+<!-- 原来的 JS 代码块 ,无i18n多语言
 <script>
-    async function suspendTenant(tenantId) {
+    async function suspendTenant(id) {
         if (!confirm("确定要封禁该租户吗？")) return;
-
-        const res = await fetch(`/api/tenants/${tenantId}/suspend`, {
-            method: "PATCH"
-        });
-
-        if (!res.ok) {
-            alert("封禁失败");
-            return;
-        }
-
-        location.reload();
+        const res = await fetch(`/api/tenants/${id}/suspend`, { method: "PATCH" });
+        if (res.ok) location.reload();
     }
 
-    async function resumeTenant(tenantId) {
+    async function resumeTenant(id) {
         if (!confirm("确定要解封该租户吗？")) return;
+        const res = await fetch(`/api/tenants/${id}/resume`, { method: "PATCH" });
+        if (res.ok) location.reload();
+    }
+</script>-->
+<!-- JS 文案国际化 -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const I18N = {
+        confirmSuspend: /*[[#{alert.confirmSuspend}]]*/ 'Are you sure to suspend this tenant?',
+        confirmResume:  /*[[#{alert.confirmResume}]]*/  'Are you sure to resume this tenant?',
+        suspendSuccess: /*[[#{alert.suspendSuccess}]]*/ 'Tenant suspended successfully',
+        resumeSuccess:  /*[[#{alert.resumeSuccess}]]*/  'Tenant resumed successfully',
+        actionFailed:   /*[[#{alert.actionFailed}]]*/   'Action failed',
+        networkError:   /*[[#{alert.networkError}]]*/   'Network/Script error'
+    };
+    /*]]>*/
+</script>
+<script>
+    async function suspendTenant(id) {
+        if (!confirm(I18N.confirmSuspend)) return;
 
-        const res = await fetch(`/api/tenants/${tenantId}/resume`, {
-            method: "PATCH"
-        });
+        try {
+            const res = await fetch(`/api/tenants/${encodeURIComponent(id)}/suspend`, {
+                method: "PATCH",
+                credentials: "same-origin"
+            });
 
-        if (!res.ok) {
-            alert("解封失败");
-            return;
+            if (res.ok) {
+                alert('✅ ' + I18N.suspendSuccess);
+                location.reload();
+                return;
+            }
+
+            alert(`❌ ${I18N.actionFailed}: HTTP ${res.status}`);
+        } catch (err) {
+            alert(`❌ ${I18N.networkError}: ${err?.message || err}`);
         }
+    }
 
-        location.reload();
+    async function resumeTenant(id) {
+        if (!confirm(I18N.confirmResume)) return;
+
+        try {
+            const res = await fetch(`/api/tenants/${encodeURIComponent(id)}/resume`, {
+                method: "PATCH",
+                credentials: "same-origin"
+            });
+
+            if (res.ok) {
+                alert('✅ ' + I18N.resumeSuccess);
+                location.reload();
+                return;
+            }
+
+            alert(`❌ ${I18N.actionFailed}: HTTP ${res.status}`);
+        } catch (err) {
+            alert(`❌ ${I18N.networkError}: ${err?.message || err}`);
+        }
     }
 </script>
+
+
 
 </body>
 </html>
