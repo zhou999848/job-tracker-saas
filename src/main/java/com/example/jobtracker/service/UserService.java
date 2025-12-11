@@ -12,6 +12,7 @@ import com.example.jobtracker.repository.UserRepository;
 
 import com.example.jobtracker.security.JwtUtil;
 import io.micrometer.common.lang.Nullable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -35,18 +36,12 @@ public class UserService {
         this.tenantRepo = tenantRepo;
         this.encoder = encoder;
     }
-    /**
-     * ✅ 推荐：安全注册（管理员/邀请链接传入 tenantId，不信任前端传 name）
-     * 规则：用户名在【租户内唯一】。
-     * @return 新用户ID（字符串）
-     */
     @Transactional
     public String registerViaAdminOrInvite(UserDto dto, @Nullable UUID pathTenantId) {
         if (dto == null || dto.getUsername() == null || dto.getPassword() == null) {
             throw new IllegalArgumentException("username and password are required");
         }
 
-        // ① 解析 tenantId（路径参数 > DTO 兜底）
         final UUID tenantId = (pathTenantId != null)
                 ? pathTenantId
                 : dto.getTenantId();
@@ -55,29 +50,37 @@ public class UserService {
             throw new IllegalArgumentException("tenantId is required");
         }
 
-        // ② 查租户（按 id）
         final Tenant tenant = tenantRepo.findById(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Tenant not found"));
 
-        // ③ 规范化 username
         final String username = dto.getUsername().trim();
         if (username.isEmpty()) throw new IllegalArgumentException("username cannot be blank");
 
-        // ④ 租户内判重（按 id）
         if (repo.existsByTenant_IdAndUsername(tenantId, username)) {
             throw new DuplicateUsernameException("Username already exists in this tenant");
         }
 
-        // ⑤ 创建用户（绑定租户）
+        // ① 解析角色（默认 USER）
+        Role role = Role.USER;
+        if (dto.getRole() != null) {
+            role = Role.valueOf(dto.getRole());
+        }
+
+        // ② 禁止通过租户注册入口创建 SYSTEM_ADMIN
+        if (role == Role.SYSTEM_ADMIN) {
+            throw new AccessDeniedException("不允许通过租户注册页面创建系统管理员");
+        }
+
         User user = new User();
         user.setUsername(username);
         user.setPassword(encoder.encode(dto.getPassword()));
-        user.setTenant(tenant); // 或 tenantRepo.getReferenceById(tenantId)
-        user.setRole(dto.getRole() != null ? Role.valueOf(dto.getRole()) : Role.USER);
+        user.setTenant(tenant); // 这里一定有 tenant
+        user.setRole(role);
 
         repo.save(user);
         return user.getId().toString();
     }
+
 
 
 

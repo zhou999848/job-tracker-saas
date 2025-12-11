@@ -19,8 +19,9 @@ public class User {
 private String displayName;
 private String email;
 
+// SYSTEM_ADMIN 的场景下 tenant 可为 null（系统级用户，不隶属于任何租户）
     @ManyToOne//多用户对一租户(tenant)
-    @JoinColumn(name = "tenant_id", nullable = false)
+    @JoinColumn(name = "tenant_id", nullable = true)
     private Tenant tenant;
     // ✅ 新增字段：角色
     // 2) User 实体加角色（字符串存储最直观）

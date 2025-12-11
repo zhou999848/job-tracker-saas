@@ -1,6 +1,7 @@
 // src/main/java/com/example/jobtracker/security/MyUserDetailsService.java
 package com.example.jobtracker.security;
 
+import com.example.jobtracker.TenantInvite7a4.Role;
 import com.example.jobtracker.domain.User;
 import com.example.jobtracker.repository.UserRepository;
 import com.example.jobtracker.tenant.TenantContext;

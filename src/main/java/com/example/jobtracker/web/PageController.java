@@ -12,6 +12,7 @@ import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.security.LoginAttemptService;
 import com.example.jobtracker.service.*;
+import com.example.jobtracker.tenant.TenantContext;
 import com.example.jobtracker.ああ７a５.ChangeRoleForm;
 import com.example.jobtracker.ああ７a５.MemberRoleService;
 import com.example.jobtracker.ああ７a５.RenameTenantForm;
@@ -22,6 +23,7 @@ import java.nio.file.Path;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -31,7 +33,10 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -54,7 +59,8 @@ import com.example.jobtracker.security.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Controller
 public class PageController {
@@ -74,7 +80,9 @@ private final LoginAttemptService loginAttemptService;
     private final MemberRoleService memberRoleService;
     private final TenantProfileService tenantProfileService;
     private final TenantService tenantService;
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo, TenantAdminService tenantAdminService, MemberRoleService memberRoleService, TenantProfileService tenantProfileService, TenantService tenantService) {
+    private final PasswordEncoder passwordEncoder ;
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo, TenantAdminService tenantAdminService, MemberRoleService memberRoleService, TenantProfileService tenantProfileService, TenantService tenantService,PasswordEncoder passwordEncoder) {
+this.passwordEncoder= passwordEncoder;
         this.tenantService = tenantService;
 this .tenantProfileService = tenantProfileService;
         this.memberRoleService = memberRoleService;
@@ -507,7 +515,7 @@ this.tenantAdminService = tenantAdminService;
     }
 
     @PostMapping("/login")
-    public String doLogin(@RequestParam String tenantName,
+    public String doLogin(@RequestParam(required = false) String tenantName,
                           @RequestParam String username,
                           @RequestParam String password,
                           @RequestParam(required = false) String redirect,
@@ -517,13 +525,15 @@ this.tenantAdminService = tenantAdminService;
 
         String uname = username;
 
-        // —— 1) 基本校验（保留你 API 的规则）
-        if (tenantName == null || tenantName.isBlank()
-                || username == null || password == null) {
-            model.addAttribute("error", "tenantName / username / password 必填");
+        // —— 1) 基本校验：username / password 必填
+        if (username == null || username.isBlank()
+                || password == null || password.isBlank()|| tenantName == null || tenantName.isBlank()) {
+
+            model.addAttribute("error", "username / password /tenantName必填");
             model.addAttribute("redirect", redirect);
             return "login";
         }
+
 
         // —— 2) 防爆破
         if (loginAttemptService.isBlocked(uname)) {
@@ -608,6 +618,9 @@ this.tenantAdminService = tenantAdminService;
             com.example.jobtracker.tenant.TenantContext.clear();
         }
     }
+
+
+
     // 寶?曻嵼摨堦槩 Controller 棦
     private void clearAllAuthCookies(HttpServletResponse response) {
         // 1) ??椷攙丗ACCESS乮楬宎 /乯
