@@ -23,12 +23,17 @@
 <div sec:authorize="isAnonymous()">
     <a th:href="@{/login}" th:text="#{nav.login}">请登录</a>
 </div>
+<style>
+    .nav-link {
+        margin-right: 12px;
+    }
+</style>
 
-<a th:href="@{/profile}" th:text="#{nav.profile}">个人信息管理</a>
-|
-<a th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}"th:text="#{nav.tenantMembers}" >租户成员信息管理</a>
-|
-<a th:href="@{/system/tenants}"  th:text="#{nav.systemTenants}">系统租户管理</a>
+<a class="nav-link" th:href="@{/profile}" th:text="#{nav.profile } "  sec:authorize="isAuthenticated()" >个人信息管理</a>
+
+<a class="nav-link" th:href="@{/tenants/{tenantId}/members(tenantId=${tenantId})}" th:text="#{nav.tenantMembers}"  sec:authorize="hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')" >租户成员信息管理</a>
+
+<a class="nav-link" th:href="@{/system/tenants}"  th:text="#{nav.systemTenants}" sec:authorize="hasRole('SYSTEM_ADMIN')">系统租户管理</a>
 
 <h2>
     <span th:text="#{page.jobs.heading}" >求职记录列表 </span>

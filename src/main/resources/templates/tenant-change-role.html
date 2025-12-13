@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="UTF-8">
     <title th:text="#{tenant.role.change.title}">变更用户角色</title>
@@ -13,15 +13,28 @@
 <form th:action="@{|/tenants/${tenantId}/members/${userId}/role|}"
       th:object="${form}"
       method="post">
-
     <label>
         <span th:text="#{form.newRole}">新角色：</span>
         <select th:field="*{newRole}">
-            <option value="USER" th:text="#{role.userFull}">普通用户 USER</option>
-            <option value="TENANT_ADMIN" th:text="#{role.tenantAdminFull}">租户管理员 TENANT_ADMIN</option>
-            <option value="SYSTEM_ADMIN" th:text="#{role.systemAdminFull}">系统管理员 SYSTEM_ADMIN</option>
+            <option value="USER"
+                    th:text="#{role.userFull}">
+                普通用户 USER
+            </option>
+
+            <option value="TENANT_ADMIN"
+                    th:text="#{role.tenantAdminFull}">
+                租户管理员 TENANT_ADMIN
+            </option>
+
+            <!-- 仅 SYSTEM_ADMIN 自己可见 -->
+            <option value="SYSTEM_ADMIN"
+                    sec:authorize="hasRole('SYSTEM_ADMIN')"
+                    th:text="#{role.systemAdminFull}">
+                系统管理员 SYSTEM_ADMIN
+            </option>
         </select>
     </label>
+
 
     <br/><br/>
 

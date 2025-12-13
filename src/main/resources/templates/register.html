@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale}">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.w3.org/1999/xhtml" th:lang="${#locale}">
 <head>
     <meta charset="UTF-8">
     <title th:text="#{page.register.title}">User Register</title>
@@ -29,7 +29,8 @@
         <select id="role" th:field="*{role}">
             <option value="USER" th:text="#{role.user}">USER</option>
             <option value="TENANT_ADMIN" th:text="#{role.tenantAdmin}">TENANT_ADMIN</option>
-            <option value="SYSTEM_ADMIN" th:text="#{role.systemAdmin}">SYSTEM_ADMIN</option>
+            <!-- 仅 SYSTEM_ADMIN 可见 -->
+            <option value="SYSTEM_ADMIN" th:text="#{role.systemAdmin}" sec:authorize="hasRole('SYSTEM_ADMIN')">SYSTEM_ADMIN</option>
         </select>
     </div>
 

@@ -45,7 +45,7 @@ public class MemberRoleService {
         // ② 普通管理员不能修改 SYSTEM_ADMIN
         if (!callerIsSysAdmin && old == Role.SYSTEM_ADMIN) {
             throw new AccessDeniedException("无权限修改系统管理员角色");
-        }
+        }//因为这个功能,我原本想回到那个普通租户里面, 但是,因为有删除这个功能,还是容易被普通管理员Tenant-Admin控制。
 
         // ③ 普通管理员不能创建 SYSTEM_ADMIN
         if (!callerIsSysAdmin && newRole == Role.SYSTEM_ADMIN) {

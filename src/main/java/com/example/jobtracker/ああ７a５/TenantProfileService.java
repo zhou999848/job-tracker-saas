@@ -26,7 +26,8 @@ public class TenantProfileService {
 
         // ---- 系统管理员允许跨租户修改 ----
         if (!currentTenant.isSystemAdmin()) {
-            TenantGuard.requireSameTenant(tenantId);
+            TenantGuard.requireSameTenant(tenantId);//让 SYSTEM_ADMIN 绕过 requireSameTenant
+
         }
 
         if (newName == null || newName.isBlank()) {
