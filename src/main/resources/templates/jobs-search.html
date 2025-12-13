@@ -5,7 +5,7 @@
     <title th:text="#{page.search.title}">职位搜索</title>
 </head>
 <body>
-<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
 
 <h2 th:text="#{page.search.heading}">职位搜索</h2>
 
@@ -101,11 +101,53 @@
     };
     /*]]>*/
 </script>
-
 <script>
-    document.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.btn-delete');
-        if (!btn) return;
+            document.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.btn-delete');
+                if (!btn) return;
 
-        const jobId = btn.dataset.id;
-        if (!jobId) { alert(I18N.n
+                const jobId = btn.dataset.id;
+                if (!jobId) {
+                    alert(I18N.notFoundId);
+                    return;
+                }
+                if (!confirm(I18N.confirmDelete)) return;
+
+                const url = `/api/jobs/${jobId}`;
+                try {
+                    const res = await apiFetch(url, { method: 'DELETE', credentials: 'same-origin' });
+
+                    if (res.status === 401) {
+
+                                        const back = encodeURIComponent(location.pathname + location.search);
+                        alert(I18N.unauthorized);
+                        location.href = `/login?redirect=${back}`;
+                        return;
+                    }
+                    if (res.status === 403) {
+                        const msg = await res.text().catch(() => '');
+                        alert(I18N.forbidden + '\n' + msg);
+                        return;
+                    }
+                    if (!res.ok) {
+                        const text = await res.text().catch(() => '');
+                        alert(`❌ ${I18N.deleteFail}: HTTP ${res.status}\n${text}`);
+                        return;
+                    }
+
+                    btn.closest('tr')?.remove();
+                    alert('✅ ' + I18N.deleteOk);
+                } catch (err) {
+                    console.error(err);
+                    alert(`❌ ${I18N.netOrScriptErr}: ${err?.message || err}`);
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', () => {
+                const count = document.querySelectorAll('.btn-delete').length;
+                console.log('[Init] delete buttons =', count);
+            });
+</script>
+
+</body>
+</html>

@@ -7,9 +7,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.example.jobtracker.TenantInvite7a4.Role;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 @Repository
@@ -41,11 +44,36 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
 
     Optional<User> findByTenant_NameAndUsername(String tenantName, String username);
+
     long countByTenant_Name(String tenantName);
+
     long countByTenant_NameAndRole(String tenantName, Role role);
 
     Optional<User> findByTenant_IdAndUsername(UUID tenantId, String username);
+
     Optional<User> findByIdAndTenant_Id(UUID userId, UUID tenantId);
+
     long countByTenant_IdAndRole(UUID tenantId, Role role);
+
     long countByTenant_Id(UUID tenantId);
-}
+
+    @Query("""
+    select u
+    from User u
+    where u.tenant.id = :tenantId
+      and (
+           lower(u.username) like lower(concat('%', :keyword, '%'))
+        or lower(u.email) like lower(concat('%', :keyword, '%'))
+      )
+""")
+    Page<User> searchMembers(
+            @Param("tenantId") UUID tenantId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+
+    }
+
+
+

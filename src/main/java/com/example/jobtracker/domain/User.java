@@ -1,6 +1,7 @@
 package com.example.jobtracker.domain;
 import com.example.jobtracker.TenantInvite7a4.Role;
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -28,7 +29,13 @@ private String email;
     private String tenantName;
     @Enumerated(EnumType.STRING)
     private Role role;
-private Instant createdAt;
+
+
+    @Column(name = "created_at", updatable = false, nullable = false)
+    private Instant createdAt= Instant.now();
+
+
+
     @Version
     private Long version;
 

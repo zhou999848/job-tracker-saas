@@ -62,6 +62,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import static com.example.jobtracker.ああ７a５.TenantGuard.currentTenantId;
+
 @Controller
 public class PageController {
     private static final Logger logger = LoggerFactory.getLogger(PageController.class);
@@ -736,7 +738,7 @@ this.tenantAdminService = tenantAdminService;
         }
 
 
-
+// ⑥ 改成员角色页面
     @GetMapping("/tenants/{tenantId}/members/{userId}/role")
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
     public String showChangeRolePage(@PathVariable UUID tenantId,
@@ -763,31 +765,7 @@ this.tenantAdminService = tenantAdminService;
     }
 
 
-
-
-
-    @GetMapping("/tenants/{tenantId}/rename")
-    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
-    public String showRenameTenantPage(@PathVariable UUID tenantId,
-                                       Model model) {
-
-        RenameTenantForm form = new RenameTenantForm();
-
-        model.addAttribute("form", form);
-        model.addAttribute("tenantId", tenantId);
-
-        return "tenant-rename";
-    }
-
-    @PostMapping("/tenants/{tenantId}/rename")
-    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
-    public String renameTenant(@PathVariable UUID tenantId,
-                               @ModelAttribute("form") RenameTenantForm form) {
-
-   tenantProfileService.rename(tenantId, form.getNewName());
-
-        return "redirect:/system/tenants";
-    }
+   // ⑥ 邀请记录页面
 
     @GetMapping("/tenants/{tenantId}/invitesList")
     @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
@@ -800,6 +778,50 @@ this.tenantAdminService = tenantAdminService;
 
         return "tenant-invite-list";
     }
+    // ⑥ 租户成员搜索页面
+    @GetMapping("/tenant/members/search")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String showSearchForm(Model model) {
+
+        model.addAttribute("keyword", "");
+        model.addAttribute("result", Page.empty());
+
+        return "tenant-members-search";
+    }
+
+
+    /** POST — 提交搜索 */
+
+    @PostMapping("/tenant/members/search")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String searchMembers(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            Model model
+    ) {
+        // ① 空搜索直接返回成员列表页（非常重要）
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return "redirect:/tenants/" + currentTenantId() + "/members";
+        }
+
+        Page<MemberDto> result =
+                tenantAdminService.searchMembers(
+                        currentTenantId(),
+                        keyword.trim(),
+                        page,
+                        size
+                );
+
+        model.addAttribute("result", result);
+        model.addAttribute("keyword", keyword.trim());
+        model.addAttribute("page", page);
+        model.addAttribute("size", size);
+        model.addAttribute("tenantId", currentTenantId());
+
+        return "tenant-members-search";
+    }
+
 
 
 
@@ -833,14 +855,14 @@ this.tenantAdminService = tenantAdminService;
 
     /** GET — 显示创建表单 */
     @GetMapping("/system/tenants/create")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public String showCreateForm(Model model) {
         model.addAttribute("form", new TenantCreateForm());
         return "system-tenants-create";
     }
 
+
     /** POST — 提交创建 */
-    @PostMapping("system/tenant/create")
+    @PostMapping("/system/tenants/create")
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public String createTenant(
             @ModelAttribute("form") TenantCreateForm form
@@ -848,6 +870,29 @@ this.tenantAdminService = tenantAdminService;
         tenantService.createTenant(form.getName());
         return "redirect:/system/tenants";  // 创建成功后跳回租户列表
     }
+    @GetMapping("/tenants/{tenantId}/rename")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String showRenameTenantPage(@PathVariable UUID tenantId,
+                                       Model model) {
+
+        RenameTenantForm form = new RenameTenantForm();
+
+        model.addAttribute("form", form);
+        model.addAttribute("tenantId", tenantId);
+
+        return "tenant-rename";
+    }
+
+    @PostMapping("/tenants/{tenantId}/rename")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String renameTenant(@PathVariable UUID tenantId,
+                               @ModelAttribute("form") RenameTenantForm form) {
+
+        tenantProfileService.rename(tenantId, form.getNewName());
+
+        return "redirect:/system/tenants";
+    }
+
 
 
 }

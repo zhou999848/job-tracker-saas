@@ -24,20 +24,22 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
 
     @Query(
             value = """
-            select new map(
-              t.id as id,
-              t.name as name,
-              t.status as status,
-              (select count(u.id) from User u where u.tenant = t) as memberCount
-            )
-            from Tenant t
-            where (:q is null or :q = '' or t.name like concat('%', :q, '%'))
-            """,
-            countQuery = """
-            select count(t)
-            from Tenant t
-            where (:q is null or :q = '' or t.name like concat('%', :q, '%'))
-            """
+    select new map(
+      t.id as id,
+      t.name as name,
+      t.status as status,
+      (select count(u.id) from User u where u.tenant = t) as memberCount
     )
-    Page<Map<String,Object>> findTenantAdminPage(@Param("q") String q, Pageable pageable);
+    from Tenant t
+    where (:q is null or :q = '' or t.name like concat('%', :q, '%'))
+    order by t.createdAt desc
+    """,
+            countQuery = """
+    select count(t)
+    from Tenant t
+    where (:q is null or :q = '' or t.name like concat('%', :q, '%'))
+    """
+    )
+    Page<Map<String,Object>> findTenantAdminPage(String q, Pageable pageable);
+
 }

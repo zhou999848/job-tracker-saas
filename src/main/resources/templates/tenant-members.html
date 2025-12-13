@@ -37,7 +37,18 @@
         <button type="submit" th:text="#{tenant.members.invite}">邀请新成员</button>
     </form>
 </h2>
+<form th:action="@{/tenant/members/search}" method="post" aria-label="search form">
+    <input type="text"
+           name="keyword"
+           th:value="${keyword}"
+           th:placeholder="#{member.search.placeholder}"
+           placeholder="成员关键字"/>
 
+    <input type="hidden" name="page" th:value="${page}"/>
+    <input type="hidden" name="size" th:value="${size}"/>
+
+    <button type="submit" th:text="#{search.button}">搜索</button>
+</form>
 <a th:href="@{/register}" th:text="#{tenant.members.registerNew}">注册新成员</a><br>
 
 <table class="table-like">

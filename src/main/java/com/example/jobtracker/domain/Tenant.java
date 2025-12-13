@@ -37,7 +37,22 @@ public class Tenant {
     @Column(nullable = false)
     private TenantStatus status = TenantStatus.ACTIVE;
 
+
+    @Column(name = "created_at", updatable = false, nullable = false)
+    private Instant createdAt= Instant.now();
+
+
+
+
     // getter/setter
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
     public UUID getId() {
         return id;
     }

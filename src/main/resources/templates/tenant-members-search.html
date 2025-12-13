@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale}">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="#{member.search.title}">成员搜索</title>
+</head>
+<body>
+
+
+
+<h2 th:text="#{member.search.heading}">成员搜索</h2>
+
+<style>
+    .table-like { border-collapse: collapse; width: 100%; font-size: 14px; color: #333; }
+    .table-like th, .table-like td { border: 1px solid #888; padding: 6px 8px; text-align: center; }
+    .table-like th { font-weight: bold; background: #f9f9f9; }
+    .action-link { color: #0066cc; text-decoration: none; cursor: pointer; }
+    .action-link:hover { text-decoration: underline; }
+    .btn-delete-member { border: none; background: none; color: #0066cc; cursor: pointer; padding: 0; font-size: 14px; }
+    .btn-delete-member:hover { text-decoration: underline; }
+</style>
+
+<!-- 搜索表单 -->
+<form th:action="@{/tenant/members/search}" method="post" aria-label="search form">
+    <input type="text"
+           name="keyword"
+           th:value="${keyword}"
+           th:placeholder="#{member.search.placeholder}"
+           placeholder="成员关键字"/>
+
+    <input type="hidden" name="page" th:value="${page}"/>
+    <input type="hidden" name="size" th:value="${size}"/>
+
+    <button type="submit" th:text="#{button.search}">搜索</button>
+</form>
+
+<!-- 没有结果 -->
+<div th:if="${result != null and #lists.isEmpty(result.content)}">
+    <p>
+        <span th:text="#{member.search.empty}">没有找到该成员</span>
+    </p>
+    <a th:href="@{/tenants/{id}/members(id=${tenantId})}"
+       th:text="#{link.back.members}">
+        返回成员列表
+    </a>
+</div>
+
+<!-- 有结果 -->
+<div th:if="${result != null and !#lists.isEmpty(result.content)}">
+    <h3 th:text="#{member.search.results}">搜索结果</h3>
+
+    <table class="table-like">
+        <thead>
+        <tr>
+            <th th:text="#{table.index}">序号</th>
+            <th th:text="#{table.username}">Username</th>
+            <th th:text="#{table.role}">Role</th>
+            <th th:text="#{table.actions}">操作</th>
+        </tr>
+        </thead>
+
+        <tbody>
+        <tr th:each="u, stat : ${result.content}">
+            <td th:text="${stat.index + 1}">1</td>
+            <td th:text="${u.username}">username</td>
+            <td th:text="${u.role}">USER</td>
+            <td>
+                <a class="action-link"
+                   th:href="@{|/tenants/${tenantId}/members/${u.userId}/role|}"
+                   th:text="#{member.action.changeRole}">
+                    变更角色
+                </a>
+                |
+                <button class="btn-delete-member"
+                        th:text="#{member.action.delete}"
+                        th:attr="data-user-id=${u.userId}, data-tenant-id=${tenantId}">
+                    删除
+                </button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <a th:href="@{/tenants/{id}/members(id=${tenantId})}"
+       th:text="#{link.back.members}">
+        返回成员列表
+    </a>
+
+    <!-- 分页 -->
+    <div style="margin-top:10px;">
+        <form th:action="@{/tenant/members/search}" method="post" style="display:inline">
+            <input type="hidden" name="keyword" th:value="${keyword}"/>
+            <input type="hidden" name="page" th:value="${result.number - 1}"/>
+            <input type="hidden" name="size" th:value="${size}"/>
+            <button type="submit"
+                    th:text="#{pagination.prev}"
+                    th:disabled="${result.first}">
+                上一页
+            </button>
+        </form>
+
+        <span style="margin:0 8px;">
+            <span th:text="#{pagination.pageShort}">第</span>
+            <span th:text="${result.number + 1}">1</span>
+            /
+            <span th:text="${result.totalPages}">1</span>
+            <span th:text="#{pagination.pages}">页</span>
+        </span>
+
+        <form th:action="@{/tenant/members/search}" method="post" style="display:inline">
+            <input type="hidden" name="keyword" th:value="${keyword}"/>
+            <input type="hidden" name="page" th:value="${result.number + 1}"/>
+            <input type="hidden" name="size" th:value="${size}"/>
+            <button type="submit"
+                    th:text="#{pagination.next}"
+                    th:disabled="${result.last}">
+                下一页
+            </button>
+        </form>
+    </div>
+</div>
+<script th:inline="javascript">
+    const I18N = {
+        notFoundId: /*[[#{alert.notFoundId}]]*/ 'ID 不存在',
+        confirmDelete: /*[[#{alert.confirmDelete}]]*/ '确定删除吗？',
+        unauthorized: /*[[#{alert.unauthorized}]]*/ '未登录或会话过期',
+        forbidden: /*[[#{alert.forbidden}]]*/ '没有权限',
+        deleteFail: /*[[#{alert.deleteFail}]]*/ '删除失败',
+        deleteOk: /*[[#{alert.deleteOk}]]*/ '删除成功',
+        netOrScriptErr: /*[[#{alert.netOrScriptErr}]]*/ '网络/脚本错误'
+    };
+</script>
+
+<script>
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-delete-member');
+        if (!btn) return;
+
+        const userId = btn.dataset.userId;
+        const tenantId = btn.dataset.tenantId;
+
+        if (!userId || !tenantId) {
+            alert(I18N.notFoundId);
+            return;
+        }
+
+        if (!confirm(I18N.confirmDelete)) return;
+
+        // ✅ 这里一定要用模板字符串
+        const url = `/api/admin/tenants/${tenantId}/members/${userId}`;
+
+        try {
+            const res = await fetch(url, {
+                method: 'DELETE',
+                credentials: 'same-origin'
+            });
+
+            if (res.status === 401) {
+                alert(I18N.unauthorized);
+                return;
+            }
+
+            if (res.status === 403) {
+                alert(I18N.forbidden);
+                return;
+            }
+
+            if (!res.ok) {
+                alert(I18N.deleteFail);
+                return;
+            }
+
+            // ✅ 前端即时删除行
+            btn.closest('tr')?.remove();
+            alert(I18N.deleteOk);
+
+        } catch (err) {
+            console.error(err);
+            alert(I18N.netOrScriptErr);
+        }
+    });
+</script>
+
+
+</body>
+</html>

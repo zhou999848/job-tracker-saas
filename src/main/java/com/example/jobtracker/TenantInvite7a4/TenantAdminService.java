@@ -48,7 +48,7 @@ public class TenantAdminService {
 
     private final TenantInviteRepo invites;
     private final TenantRepository tenants;
-    private final UserRepository users;
+    private final UserRepository userRepo;
     private final PasswordEncoder encoder;
     private final Clock clock;
 
@@ -65,7 +65,7 @@ public class TenantAdminService {
         this.currentTenant = currentTenant;
         this.invites = Objects.requireNonNull(invites);
         this.tenants = Objects.requireNonNull(tenants);
-        this.users = Objects.requireNonNull(users);
+        this.userRepo = Objects.requireNonNull(users);
         this.encoder = Objects.requireNonNull(encoder);
         // 若项目未声明 Clock Bean，这里用系统 UTC 兜底，避免 NPE
         this.clock = clock.orElse(Clock.systemUTC());
@@ -173,7 +173,7 @@ public class TenantAdminService {
         }
 
         // 2) 邮箱冲突校验：邮箱若存在且属于其他租户 → 拒绝；属于当前租户 → 也拒绝（受邀注册只允许新建）
-        users.findByEmail(invite.getEmail()).ifPresent(u -> {
+        userRepo.findByEmail(invite.getEmail()).ifPresent(u -> {
             UUID inviteTid = invite.getTenant().getId();
             UUID userTid = u.getTenant().getId();
             if (!inviteTid.equals(userTid)) {
@@ -183,7 +183,7 @@ public class TenantAdminService {
         });
 
         // 3) 用户名冲突
-        users.findByUsername(username).ifPresent(u -> {
+        userRepo.findByUsername(username).ifPresent(u -> {
             throw new IllegalStateException("该用户名已被占用");
         });
 
@@ -198,7 +198,7 @@ public class TenantAdminService {
         user.setRole(invite.getRole());
         // 如需审计：user.setCreatedAt(now);
 
-        users.save(user);          // persist（非 merge）
+        userRepo.save(user);          // persist（非 merge）
         // users.flush();           // 可选：需要立即捕获唯一约束等异常时打开
 
         // 5) 标记邀请已使用 —— invite 为托管实体，更新后保存（或依赖脏检查亦可）
@@ -220,7 +220,7 @@ public class TenantAdminService {
         ensureSameTenantOrSysAdmin(tenantId);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<User> pageData = users.findAllByTenantId(tenantId, pageable);
+        Page<User> pageData = userRepo.findAllByTenantId(tenantId, pageable);
         return pageData.map(u -> new MemberDto(
                 u.getId(),
                 u.getUsername(),
@@ -228,6 +228,44 @@ public class TenantAdminService {
                 u.getRole(),
                 u.getCreatedAt()));
     }
+
+
+
+
+    // ======================
+    // 成员搜索
+    // ======================
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public Page<MemberDto> searchMembers(
+            UUID tenantId,
+            String keyword,
+            int page,
+            int size
+    ) {
+        Objects.requireNonNull(tenantId, "tenantId is required");
+        ensureSameTenantOrSysAdmin(tenantId);
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<User> pageData =
+                userRepo.searchMembers(tenantId, keyword, pageable);
+
+        return pageData.map(u -> new MemberDto(
+                u.getId(),
+                u.getUsername(),
+                u.getEmail(),
+                u.getRole(),
+                u.getCreatedAt()
+        ));
+    }
+
+
+
 
     // ======================
 // 删除成员（最后管理员保护）
@@ -245,7 +283,7 @@ public class TenantAdminService {
         ensureSameTenantOrSysAdmin(tenantId);
 
         // 2) 目标用户（再做一次租户断言）
-        User target = users.findById(userId)
+        User target = userRepo.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
         assertSameTenant(target.getTenant().getId(), tenantId);
 
@@ -259,7 +297,7 @@ public class TenantAdminService {
         // 优先用 details 里的 userId；若为空（如 SYSTEM_ADMIN 跨租户），回退用 (tenantId, username) 查
         UUID operatorId = (actor != null) ? actor.userId() : null;
         if (operatorId == null) {
-            operatorId = users.findByTenantIdAndUsername(tenantId, operatorUsername)
+            operatorId = userRepo.findByTenantIdAndUsername(tenantId, operatorUsername)
                     .map(User::getId)
                     .orElse(null); // 跨租户时可能为空，后面判空处理
         }
@@ -282,8 +320,8 @@ public class TenantAdminService {
     """).setParameter("uid", target.getId()).executeUpdate();
 
         // 7) 物理删除用户；不要再对 target 做任何 save/merge
-        users.delete(target);
-        users.flush(); // 可留，便于尽早暴露约束问题
+        userRepo.delete(target);
+        userRepo.flush(); // 可留，便于尽早暴露约束问题
 
         log.info("[MemberRemoved] tenantId={}, userId={}, operator={}", tenantId, userId, operatorUsername);
     }
@@ -322,7 +360,7 @@ public class TenantAdminService {
     }
 
     private long countAdmins(UUID tenantId) {
-        return users.countByTenantIdAndRole(tenantId, Role.TENANT_ADMIN);
+        return userRepo.countByTenantIdAndRole(tenantId, Role.TENANT_ADMIN);
     }
 
     private String requireToken(String token) {
@@ -359,12 +397,12 @@ public class TenantAdminService {
 
         // 首选按 userId 精确命中
         if (p.userId() != null) {
-            return users.findById(p.userId())
+            return userRepo.findById(p.userId())
                     .orElseThrow(() -> new IllegalStateException("当前用户不存在：" + p));
         }
 
         // 兜底：严格使用 tenantId + username
-        return users.findByTenantIdAndUsername(p.tenantId(), p.username())
+        return userRepo.findByTenantIdAndUsername(p.tenantId(), p.username())
                 .orElseThrow(() -> new IllegalStateException("当前用户不存在：" + p));
     }
     private String getCurrentUsername() {
