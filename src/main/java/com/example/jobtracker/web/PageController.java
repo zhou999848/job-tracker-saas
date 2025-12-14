@@ -13,10 +13,7 @@ import com.example.jobtracker.domain.Note;
 import com.example.jobtracker.security.LoginAttemptService;
 import com.example.jobtracker.service.*;
 import com.example.jobtracker.tenant.TenantContext;
-import com.example.jobtracker.ああ７a５.ChangeRoleForm;
-import com.example.jobtracker.ああ７a５.MemberRoleService;
-import com.example.jobtracker.ああ７a５.RenameTenantForm;
-import com.example.jobtracker.ああ７a５.TenantProfileService;
+import com.example.jobtracker.ああ７a５.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.file.Path;
@@ -30,6 +27,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -39,6 +37,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -51,10 +50,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Principal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+
 import com.example.jobtracker.security.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -83,7 +80,11 @@ private final LoginAttemptService loginAttemptService;
     private final TenantProfileService tenantProfileService;
     private final TenantService tenantService;
     private final PasswordEncoder passwordEncoder ;
-    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo, TenantAdminService tenantAdminService, MemberRoleService memberRoleService, TenantProfileService tenantProfileService, TenantService tenantService,PasswordEncoder passwordEncoder) {
+
+    private final SecurityUtils securityUtils;
+
+    public PageController(AuthenticationManager authManager, JwtUtil jwtUtil, JobApplicationRepository jobRepo, NoteRepository noteRepo, UserRepository userRepo, NoteService noteService,UserService userService, LoginAttemptService loginAttemptService,JobApplicationService jobService, CurrentTenant currentTenant, TenantRepository tenantRepo, TenantAdminService tenantAdminService, MemberRoleService memberRoleService, TenantProfileService tenantProfileService, TenantService tenantService,PasswordEncoder passwordEncoder, SecurityUtils securityUtils) {
+        this.securityUtils = securityUtils;
 this.passwordEncoder= passwordEncoder;
         this.tenantService = tenantService;
 this .tenantProfileService = tenantProfileService;
@@ -469,45 +470,6 @@ this.tenantAdminService = tenantAdminService;
 
 
 
-    @GetMapping("/register")
-    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
-    public String registerPage(Model model) {
-
-        // 当前租户 ID（必要）
-        UUID tenantId = currentTenant.requireTenantId();
-        model.addAttribute("tenantId", tenantId);
-
-        // 若没有表单对象则初始化
-        if (!model.containsAttribute("userDto")) {
-            UserDto dto = new UserDto();
-            dto.setRole("USER"); // 默认角色（可按需）
-            model.addAttribute("userDto", dto);
-        }
-
-        return "register";
-    }
-    @PostMapping("/register")
-    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
-    public String register(@ModelAttribute("userDto") @Valid UserDto dto,
-                           BindingResult br,
-                           RedirectAttributes ra) {
-
-        UUID tenantId = currentTenant.requireTenantId();
-
-        if (br.hasErrors()) {
-            return "register";  // 回到注册页，显示错误
-        }
-
-        logger.info("[Register(Admin)] username={} tenant={}", dto.getUsername(), tenantId);
-
-        // ★★ 关键：走新的安全注册方法 ★★
-        userService.registerViaAdminOrInvite(dto, tenantId);
-
-        ra.addFlashAttribute("ok", "注册成功");
-        return "redirect:/tenants/" + tenantId + "/members";
-    }
-
-
 
     @GetMapping("/login")
     public String loginPage(@RequestParam(value = "redirect", required = false) String redirect,
@@ -531,7 +493,7 @@ this.tenantAdminService = tenantAdminService;
         if (username == null || username.isBlank()
                 || password == null || password.isBlank()|| tenantName == null || tenantName.isBlank()) {
 
-            model.addAttribute("error", "username / password /tenantName必填");
+            model.addAttribute("error", "login.error.required");
             model.addAttribute("redirect", redirect);
             return "login";
         }
@@ -539,7 +501,7 @@ this.tenantAdminService = tenantAdminService;
 
         // —— 2) 防爆破
         if (loginAttemptService.isBlocked(uname)) {
-            model.addAttribute("error", "尝试次数过多，账户已暂时锁定");
+            model.addAttribute("error", "login.error.blocked");
             model.addAttribute("redirect", redirect);
             return "login";
         }
@@ -600,18 +562,18 @@ this.tenantAdminService = tenantAdminService;
 
         } catch (BadCredentialsException e) {
             loginAttemptService.loginFailed(uname);
-            model.addAttribute("error", "用户名或密码错误");
+            model.addAttribute("error", "login.error.bad_credentials");
             model.addAttribute("redirect", redirect);
             return "login";
 
         } catch (AuthenticationException e) {
             loginAttemptService.loginFailed(uname);
-            model.addAttribute("error", "登录失败，请重试");
+            model.addAttribute("error", "login.error.failed");
             model.addAttribute("redirect", redirect);
             return "login";
 
         } catch (Exception e) {
-            model.addAttribute("error", "系统错误，请稍后重试");
+            model.addAttribute("error", "login.error.system");
             model.addAttribute("redirect", redirect);
             return "login";
 
@@ -676,7 +638,8 @@ this.tenantAdminService = tenantAdminService;
     public String errorTest() {
         // 故意抛异常
         throw new RuntimeException("手动触发异常");
-    }@GetMapping("/encoding-test") @ResponseBody
+    }
+    @GetMapping("/encoding-test") @ResponseBody
     public String encoding() {
         return "中文OK 日本語OK ひらがなカタカナ";
     }
@@ -736,15 +699,14 @@ this.tenantAdminService = tenantAdminService;
             ra.addFlashAttribute("ok", "邀请成功！");
             return "redirect:/tenants/" + tenantId + "/invitesList";
         }
-
-
-// ⑥ 改成员角色页面
+    // ⑥ 改成员角色页面（GET）
     @GetMapping("/tenants/{tenantId}/members/{userId}/role")
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
     public String showChangeRolePage(@PathVariable UUID tenantId,
                                      @PathVariable UUID userId,
                                      Model model) {
 
+        // 和 loginPage 一样：只做页面初始化
         ChangeRoleForm form = new ChangeRoleForm();
         model.addAttribute("form", form);
         model.addAttribute("tenantId", tenantId);
@@ -752,20 +714,94 @@ this.tenantAdminService = tenantAdminService;
 
         return "tenant-change-role";
     }
-
     @PostMapping("/tenants/{tenantId}/members/{userId}/role")
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    @Transactional
     public String changeRole(@PathVariable UUID tenantId,
                              @PathVariable UUID userId,
-                             @ModelAttribute("form") ChangeRoleForm form) {
+                             @ModelAttribute("form") ChangeRoleForm form,
+                             Model model) {
 
-       memberRoleService .changeRole(tenantId, userId, form.getNewRole());
+        try {
+            boolean callerIsSysAdmin = currentTenant.isSystemAdmin();
 
-        return "redirect:/tenants/" + tenantId + "/members";
+            // —— 1) 权限校验（对应 login 的「必填校验」）
+            if (!callerIsSysAdmin) {
+                TenantGuard.requireSameTenant(tenantId);
+            }
+
+            // —— 2) 查找目标用户
+            User target = userRepo.findByIdAndTenant_Id(userId, tenantId)
+                    .orElseThrow(() -> new NoSuchElementException("member.error.not_found"));
+
+            Role oldRole = target.getRole();
+            Role newRole = form.getNewRole();
+
+            // —— 3) 无变化：直接成功
+            if (oldRole == newRole) {
+                return "redirect:/tenants/" + tenantId + "/members";
+            }
+
+            // —— 4) 普通管理员不能修改 SYSTEM_ADMIN
+            if (!callerIsSysAdmin && oldRole == Role.SYSTEM_ADMIN) {
+                throw new AccessDeniedException("member.error.modify_system_admin");
+            }
+
+            // —— 5) 普通管理员不能创建 SYSTEM_ADMIN
+            if (!callerIsSysAdmin && newRole == Role.SYSTEM_ADMIN) {
+                throw new AccessDeniedException("member.error.create_system_admin");
+            }
+
+            // —— 6) 最后一个 TENANT_ADMIN 保护
+            if (oldRole == Role.TENANT_ADMIN && newRole == Role.USER) {
+                long admins = userRepo.countByTenant_IdAndRole(tenantId, Role.TENANT_ADMIN);
+                if (admins <= 1) {
+                    throw new IllegalStateException("member.error.last_admin");
+                }
+            }
+
+            // —— 7) 不能把自己降级
+            if (target.getId().equals(securityUtils.currentUserId())
+                    && newRole == Role.USER) {
+                throw new IllegalStateException("member.error.self_downgrade");
+            }
+
+            // —— 8) 真正修改角色
+            target.setRole(newRole);
+
+            // —— 9) 成功：redirect（= login 成功 redirect:/jobs）
+            return "redirect:/tenants/" + tenantId + "/members";
+
+        } catch (AccessDeniedException e) {
+
+            model.addAttribute("error", e.getMessage());
+            // 保证页面能重新渲染
+            model.addAttribute("tenantId", tenantId);
+            model.addAttribute("userId", userId);
+            return "tenant-change-role";
+
+        } catch (IllegalStateException e) {
+
+            model.addAttribute("error", e.getMessage());
+            model.addAttribute("tenantId", tenantId);
+            model.addAttribute("userId", userId);
+            return "tenant-change-role";
+
+        } catch (NoSuchElementException e) {
+
+            model.addAttribute("error", e.getMessage());
+            model.addAttribute("tenantId", tenantId);
+            model.addAttribute("userId", userId);
+            return "tenant-change-role";
+
+        } finally {
+            // —— 10) 和 login 一样：如有上下文，这里统一清理
+        }
     }
 
 
-   // ⑥ 邀请记录页面
+
+    // ⑥ 邀请记录页面
 
     @GetMapping("/tenants/{tenantId}/invitesList")
     @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
@@ -778,6 +814,49 @@ this.tenantAdminService = tenantAdminService;
 
         return "tenant-invite-list";
     }
+
+//⑥ 注册新成员页面
+    @GetMapping("/register")
+    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
+    public String registerPage(Model model) {
+
+        // 当前租户 ID（必要）
+        UUID tenantId = currentTenant.requireTenantId();
+        model.addAttribute("tenantId", tenantId);
+
+        // 若没有表单对象则初始化
+        if (!model.containsAttribute("userDto")) {
+            UserDto dto = new UserDto();
+            dto.setRole("USER"); // 默认角色（可按需）
+            model.addAttribute("userDto", dto);
+        }
+
+        return "register";
+    }
+    @PostMapping("/register")
+    @PreAuthorize("hasRole('TENANT_ADMIN') or hasRole('SYSTEM_ADMIN')")
+    public String register(@ModelAttribute("userDto") @Valid UserDto dto,
+                           BindingResult br,
+                           RedirectAttributes ra) {
+
+        UUID tenantId = currentTenant.requireTenantId();
+
+        if (br.hasErrors()) {
+            return "register";  // 回到注册页，显示错误
+        }
+
+        logger.info("[Register(Admin)] username={} tenant={}", dto.getUsername(), tenantId);
+
+        // ★★ 关键：走新的安全注册方法 ★★
+        userService.registerViaAdminOrInvite(dto, tenantId);
+
+        ra.addFlashAttribute("ok", "注册成功");
+        return "redirect:/tenants/" + tenantId + "/members";
+    }
+
+
+
+
     // ⑥ 租户成员搜索页面
     @GetMapping("/tenant/members/search")
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
@@ -870,6 +949,9 @@ this.tenantAdminService = tenantAdminService;
         tenantService.createTenant(form.getName());
         return "redirect:/system/tenants";  // 创建成功后跳回租户列表
     }
+
+
+    // ⑦ 重命名租户页面
     @GetMapping("/tenants/{tenantId}/rename")
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
     public String showRenameTenantPage(@PathVariable UUID tenantId,

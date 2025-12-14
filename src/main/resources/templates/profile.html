@@ -8,15 +8,8 @@
 <body>
 <!-- 多语言切换 -->
 <div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
-
-<!-- 返回按钮 -->
-<p>
-    <a th:href="@{/jobs}" th:text="#{return.jobList}">返回职位列表</a>
-</p>
-
 <!-- 基本资料 -->
 <h2 th:text="#{profile.title}">プロフィール</h2>
-
 <!-- 不再用 th:action 提交到 MVC；让 JS 接管 -->
 <form id="profileForm">
     <label for="displayName" th:text="#{profile.nickname}">ニックネーム</label>
@@ -46,6 +39,10 @@
 
     <button id="btnChangePwd" type="submit" th:text="#{profile.password.change}">パスワードを変更</button>
 </form>
+<!-- 返回按钮 -->
+<p>
+    <a th:href="@{/jobs}" th:text="#{return.jobList}">返回职位列表</a>
+</p>
 
 <!-- 统一的反馈区（成功 / 错误） -->
 <div id="msgOk"  style="color: green; margin: 8px 0; display:none;"></div>

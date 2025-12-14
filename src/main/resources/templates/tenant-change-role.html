@@ -37,6 +37,8 @@
 
 
     <br/><br/>
+    <!-- ✅ 国际化错误消息 -->
+    <div th:if="${error}" th:text="#{${error}}" class="error" aria-live="polite"></div>
 
     <button type="submit" th:text="#{form.save}">保存</button>
 </form>
