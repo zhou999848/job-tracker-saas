@@ -38,9 +38,8 @@ SaaS アーキテクチャとバックエンド設計を主軸に、
 ## 設計方針（Design Highlights）
 
 - バックエンド主導のマルチテナント識別・分離設計
-- Tenant エンティティを導入し、User / Job / Note を tenant_id に紐付け
-- ログイン後はバックエンド側でテナントを自動判定（フロントで tenantId は扱わない）
-- リクエストスコープの TenantContext によるテナント管理
+- Tenant を最上位の境界とし、User / Job / Note を tenant_id に紐付け
+- 認証後はバックエンド側でテナントを自動判定（フロントで tenantId は扱わない）
 - UI 層 + Service 層の二重権限チェックによる厳格なアクセス制御
 
 ---
@@ -59,6 +58,7 @@ SaaS アーキテクチャとバックエンド設計を主軸に、
 ## ローカル実行（Local Run）
 
 以下のコマンドで起動が可能です。
+
 docker compose up --build
 
 起動後、ブラウザで以下の URL にアクセスしてください。
