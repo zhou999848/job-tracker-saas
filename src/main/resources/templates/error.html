@@ -5,18 +5,25 @@
     <title th:text="#{app.title}">App</title>
 </head>
 <body>
-<h2 th:with="sc=${code} != null ? ${code} : (${status} != null ? ${status} : 500)"
-    th:text="'Error ' + sc">Error</h2>
+<!--<h2 th:with="sc=${code} != null ? ${code} : (${status} != null ? ${status} : 500)"
+    th:text="'Error ' + sc">Error</h2>-->
+<h2 th:text="#{error.title}">Error</h2>
 
 <p th:text="${#messages.msgOrNull(msgKey)} ?: (${message} ?: (${error} ?: 'Something went wrong'))">
     Something went wrong
 </p>
+
+<p th:if="${status}" th:text="#{error.status(${status})}">Status</p>
+
+
 <!-- 校验错误信息 -->
 <ul th:if="${validationMessages != null}">
     <li th:each="msg : ${validationMessages}" th:text="${msg}">Validation error</li>
 </ul>
 
-<small th:if="${path}" th:text="'Path: ' + ${path}">Path</small><br/>
+<!--<small th:if="${path}" th:text="'Path: ' + ${path}">Path</small><br/>-->
+<small th:if="${path} and ${showPath}" th:text="'Path: ' + ${path}">Path</small>
+
 
 <a href="javascript:history.back()" th:text="#{btn.back}">Back</a>
 </body>

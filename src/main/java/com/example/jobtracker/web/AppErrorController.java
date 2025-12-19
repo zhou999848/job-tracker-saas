@@ -68,11 +68,16 @@ public class AppErrorController implements ErrorController {
             case 404 -> "error.404";
             default -> "error.500";
         };
-
+Boolean showPath = switch (httpStatus.value()) {
+            case 400, 401, 403, 404 -> false;
+            default -> true;
+        };
         model.addAttribute("msgKey", key);
         model.addAttribute("message", message);
         model.addAttribute("path", path);
-
+        model.addAttribute("timestamp", Instant.now().toString());//new
+        model.addAttribute("status", httpStatus.value());//new
+        model.addAttribute("showPath",showPath);//new
         // ✅ 如果是校验错误，把所有错误文案放入 model
         if (ex instanceof MethodArgumentNotValidException manv) {
             List<String> validationMessages = new ArrayList<>();

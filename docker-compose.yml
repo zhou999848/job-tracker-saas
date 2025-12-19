@@ -1,57 +1,28 @@
-version: '3.8'  # Docker Compose 的版本
+version: "3.9"
 
 services:
-  db:  # 服务名叫 db（你可以叫 postgres）
-    image: postgres:16  # 使用官方 PostgreSQL 16 镜像
-    container_name: jobtracker-db  # 容器名称
-    restart: always  # 出错后自动重启
-    environment:  # 设置环境变量
-      POSTGRES_USER: jobuser  # 数据库用户名
-      POSTGRES_PASSWORD: jobpass  # 用户密码
-      POSTGRES_DB: jobtracker  # 初始化创建的数据库名称
-    ports:
-      - "5432:5432"  # 本地的5432端口映射到容器的5432
-    volumes:
-      - pgdata:/var/lib/postgresql/data  # 数据挂载，防止容器删掉数据丢失
-
-  pgadmin:
-    image: dpage/pgadmin4  # 可视化界面工具
-    container_name: pgadmin4
-    restart: always
+  db:
+    image: postgres:16
+    container_name: jobtracker-db
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com  # 登录账号
-      PGADMIN_DEFAULT_PASSWORD: admin123  # 登录密码
+      POSTGRES_USER: jobuser
+      POSTGRES_PASSWORD: jobpass
+      POSTGRES_DB: jobtracker
     ports:
-      - "5050:80"  # 本地5050端口 → 容器中的80端口（网页）
-
-  # --- MinIO 文件存储 ---
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"   # S3 API 端口
-      - "9001:9001"   # 控制台端口
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      - "5432:5432"
     volumes:
-      - ./minio-data:/data
+      - pgdata:/var/lib/postgresql/data
 
-  # --- MinIO 客户端（mc）---
-  mc:
-    image: minio/mc:latest
+  app:
+    build: .
+    container_name: jobtracker-app
     depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      sleep 2;
-      mc alias set local http://minio:9000 minioadmin minioadmin;
-      mc mb -p local/jobtracker || true;
-      mc anonymous set none local/jobtracker;
-      echo 'MinIO ready';
-      tail -f /dev/null
-      "
+      - db
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    restart: unless-stopped
 
 volumes:
-  pgdata:  # 命名卷，数据库文件存在本地
+  pgdata:
