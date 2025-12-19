@@ -42,26 +42,6 @@ SaaS アーキテクチャとバックエンド設計を主軸に、
 - ログイン後はバックエンド側でテナントを自動判定（フロントで tenantId は扱わない）
 - リクエストスコープの TenantContext によるテナント管理
 - UI 層 + Service 層の二重権限チェックによる厳格なアクセス制御
-- 
-
-## 設計方針（Design Highlights）
-
-- Tenant を最上位の境界としたマルチテナント設計
-- User / Job / Note などの業務データを Tenant 単位で分離
-- 認証後はバックエンド側でテナントを自動判定
-- 権限は UI と Service 層の両方で検証し、越権アクセスを防止
-- 構造概要（Tenant → User → Job / Note）
-
-```mermaid
-graph TD
-    Tenant[Tenant]
-    User[User]
-    Job[Job]
-    Note[Note]
-
-    Tenant --> User
-    User --> Job
-    User --> Note
 
 ---
 
