@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -974,11 +975,31 @@ this.tenantAdminService = tenantAdminService;
 
         return "redirect:/system/tenants";
     }
+    // 管理员查看指定学生的职位列表（分页）
+    @GetMapping("/tenants/members/{userId}/jobs")
+    @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
+    public String viewStudentJobs(
+            @PathVariable UUID userId,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+           Model model
+    ) {
+        UUID tenantId = TenantContext.getId(); // ← 按你项目实际方法替换
+        Page<JobApplication> page = jobService.getStudentJobs(tenantId, userId, pageable);
 
+
+        model.addAttribute("page", page);
+        model.addAttribute("jobs", page.getContent());
+        model.addAttribute("studentUserId", userId);
+        model.addAttribute("currentPage", page.getNumber());
+        model.addAttribute("totalPages", page.getTotalPages());
+        model.addAttribute("pageSize", page.getSize());
+
+
+        return "tenants/student-jobs";
+    }
 
 
 }
-
 
 
 

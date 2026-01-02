@@ -66,13 +66,19 @@
             <td th:text="${u.role}">USER</td>
             <td>
                 <a class="action-link"
+                   th:href="@{|/tenants/members/${u.userId}/jobs|}"
+                   th:text="#{tenant.members.viewJobs}">
+                    求職記録
+                </a>
+                |
+                <a class="action-link"
                    th:href="@{|/tenants/${tenantId}/members/${u.userId}/role|}"
-                   th:text="#{member.action.changeRole}">
+                   th:text="#{tenant.members.changeRole}">
                     变更角色
                 </a>
                 |
                 <button class="btn-delete-member"
-                        th:text="#{member.action.delete}"
+                        th:text="#{tenant.members.delete}"
                         th:attr="data-user-id=${u.userId}, data-tenant-id=${tenantId}">
                     删除
                 </button>

@@ -1,11 +1,16 @@
 package com.example.jobtracker.web;
 
+import ch.qos.logback.core.model.Model;
 import com.example.jobtracker.domain.JobApplication;
 import com.example.jobtracker.dto.JobApplicationDto;
 import com.example.jobtracker.security.JwtUtil;
 import com.example.jobtracker.service.JobApplicationService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -165,4 +170,6 @@ public class JobApplicationController {
          return ResponseEntity.ok("删除成功 / 削除成功 / Deleted successfully");
 
     }
+
+
 }

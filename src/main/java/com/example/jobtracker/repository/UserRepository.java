@@ -71,6 +71,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             @Param("keyword") String keyword,
             Pageable pageable
     );
+    boolean existsByIdAndTenant_Id(UUID userId, UUID tenantId);
 
 
     }

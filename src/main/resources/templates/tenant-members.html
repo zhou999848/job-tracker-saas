@@ -69,6 +69,12 @@
 
         <td>
             <a class="action-link"
+               th:href="@{|/tenants/members/${m.userId}/jobs|}"
+               th:text="#{tenant.members.viewJobs}">
+                求職記録
+            </a>
+            |
+            <a class="action-link"
                th:href="@{|/tenants/${tenantId}/members/${m.userId}/role|}"
                th:text="#{tenant.members.changeRole}">
                 变更角色

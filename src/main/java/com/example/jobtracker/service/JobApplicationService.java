@@ -204,6 +204,18 @@ public class JobApplicationService {
         job.setAppliedDate(req.getAppliedDate());
         jobRepository.save(job);
     }
+    @Transactional(readOnly = true)
+
+    public Page<JobApplication> getStudentJobs(UUID tenantId, UUID studentUserId, Pageable pageable) {
+
+        // ① student 必须属于当前 tenant
+        if (!userRepository.existsByIdAndTenant_Id(studentUserId, tenantId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+
+        // ② 查询该学生在本 tenant 下的 Job
+        return jobRepository.findByTenant_IdAndUser_Id(tenantId, studentUserId, pageable);
+    }
 }
 
 

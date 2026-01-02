@@ -29,4 +29,11 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication,U
     // （可选）仅按租户分页（用于租户管理员总览）
     Page<JobApplication> findByTenantId(UUID tenantId, Pageable pageable);
 
+    // 管理员查看：指定学生在本租户下的 Job 列表（分页）
+    Page<JobApplication> findByTenant_IdAndUser_Id(UUID tenantId, UUID userId, Pageable pageable);
+
+    // （可选）管理员查看：指定学生 + 公司名搜索
+    Page<JobApplication> findByTenant_IdAndUser_IdAndCompanyContainingIgnoreCase(
+            UUID tenantId, UUID userId, String keyword, Pageable pageable);
+
 }
