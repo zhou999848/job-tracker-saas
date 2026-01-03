@@ -232,6 +232,7 @@ this.tenantAdminService = tenantAdminService;
     public String doSearch(@RequestParam String keyword,
                            @RequestParam(defaultValue = "0") int page,
                            @RequestParam(defaultValue = "5") int size,
+                           UUID userID,
                            Model model) {
 
         Page<JobApplicationDto> result =
@@ -980,7 +981,7 @@ this.tenantAdminService = tenantAdminService;
     @PreAuthorize("hasAnyRole('TENANT_ADMIN','SYSTEM_ADMIN')")
     public String viewStudentJobs(
             @PathVariable UUID userId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @PageableDefault(size = 5, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
            Model model
     ) {
         UUID tenantId = TenantContext.getId(); // ← 按你项目实际方法替换
@@ -988,11 +989,11 @@ this.tenantAdminService = tenantAdminService;
 
 
         model.addAttribute("page", page);
-        model.addAttribute("jobs", page.getContent());
+
         model.addAttribute("studentUserId", userId);
         model.addAttribute("currentPage", page.getNumber());
         model.addAttribute("totalPages", page.getTotalPages());
-        model.addAttribute("pageSize", page.getSize());
+
 
 
         return "tenants/student-jobs";

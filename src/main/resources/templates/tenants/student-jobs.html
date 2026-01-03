@@ -6,7 +6,16 @@
 </head>
 <body>
 
-<h2>学生の求職記録</h2>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2>
+    <span th:text="#{page.jobs.heading}">求职记录列表</span>
+    <span style="color:#666; font-size:14px;"
+          th:text="#{jobs.count(${page.totalElements})}">
+    （共0条）
+  </span>
+</h2>
+
 
 <table border="1">
         <thead>
@@ -21,8 +30,11 @@
         </thead>
 
         <tbody>
-        <tr th:each="job, stat : ${jobs}" th:attr="data-row-id=${job.id}">
-            <td th:text="${pageSize * currentPage + stat.index + 1}">序号</td>
+        <tr th:each="job, stat : ${page.content}">
+
+       <!-- <tr th:each="job, stat : ${jobs}" th:attr="data-row-id=${job.id}">-->
+            <td th:text="${page.size * page.number + stat.index + 1}">序号</td>
+
             <td th:text="${job.company}">公司</td>
             <td th:text="${job.position}">职位</td>
             <td th:text="${job.status}">状态</td>
@@ -38,28 +50,31 @@
         </tbody>
     </table>
 
-    <!-- 分页 -->
-    <div>
+<!-- 分页 -->
+<div>
   <span th:if="${currentPage > 0}">
-    <a th:href="@{/jobs(page=${currentPage - 1})}" th:text="#{pagination.prev}">上一页</a>
+    <a th:href="@{/tenants/members/{userId}/jobs(userId=${studentUserId}, page=${currentPage - 1})}"
+       th:text="#{pagination.prev}">上一页</a>
   </span>
 
-        <span>
-      <span th:text="#{pagination.page}">第</span>
-      <span th:text="${currentPage + 1}">1</span>
-      <span th:text="#{pagination.pageSuffix}">页</span>
+    <span>
+    <span th:text="#{pagination.page}">第</span>
+    <span th:text="${currentPage + 1}">1</span>
+    <span th:text="#{pagination.pageSuffix}">页</span>
   </span>
 
-        <span>
-      <span th:text="#{pagination.total}">共</span>
-      <span th:text="${totalPages}">1</span>
-      <span th:text="#{pagination.pageSuffix}">页</span>
+    <span>
+    <span th:text="#{pagination.total}">共</span>
+    <span th:text="${totalPages}">1</span>
+    <span th:text="#{pagination.pageSuffix}">页</span>
   </span>
 
-        <span th:if="${currentPage + 1 < totalPages}">
-    <a th:href="@{/jobs(page=${currentPage + 1})}" th:text="#{pagination.next}">下一页</a>
+    <span th:if="${currentPage + 1 < totalPages}">
+    <a th:href="@{/tenants/members/{userId}/jobs(userId=${studentUserId}, page=${currentPage + 1})}"
+       th:text="#{pagination.next}">下一页</a>
   </span>
-    </div>
+</div>
+
 <a th:href="@{|/tenants/${tenantId}/members|}" th:text="#{link.backToMembers}">
     返回成员列表
 </a>

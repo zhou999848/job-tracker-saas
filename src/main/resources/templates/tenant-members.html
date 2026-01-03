@@ -60,7 +60,6 @@
         <th th:text="#{table.actions}">操作</th>
     </tr>
     </thead>
-
     <tbody>
     <tr th:each="m, stat : ${members}">
         <td th:text="${pageSize * currentPage + stat.index + 1}"></td>
