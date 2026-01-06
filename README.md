@@ -48,12 +48,13 @@
 
 ## ローカル実行（Local Run）
 
-以下のコマンドで起動が可能です。
+前提：Docker がインストール済みであること（ポート 8080 が空いていること）
 
-docker compose up --build
+起動： docker compose up --build
 
-起動後、ブラウザで以下の URL にアクセスしてください。
-http://localhost:8080
+アクセス：http://localhost:8080
+
+停止：Ctrl + C（または docker compose down）
 
 ---
 
@@ -96,7 +97,6 @@ http://localhost:8080
 
 ## プロジェクト位置づけ（面接用）
 
-- CRUD 練習ではない
 - マルチテナント設計・権限モデル・設計判断を重視
 - 求職活動向けの成果物として位置づけ、継続的な進化を想定
 

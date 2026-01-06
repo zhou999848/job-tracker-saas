@@ -5,24 +5,62 @@ services:
     image: postgres:16
     container_name: jobtracker-db
     environment:
-      POSTGRES_USER: jobuser
-      POSTGRES_PASSWORD: jobpass
-      POSTGRES_DB: jobtracker
+      POSTGRES_USER: ${POSTGRES_USER:-jobuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobpass}
+      POSTGRES_DB: ${POSTGRES_DB:-jobtracker}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: jobtracker-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
 
   app:
     build: .
     container_name: jobtracker-app
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker
+
+      # DB (IMPORTANT: use service name "db")
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-jobtracker}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-jobuser}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-jobpass}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+
+      # MinIO (IMPORTANT: use service name "minio")
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-jobtracker}
+      FILE_S3_ENDPOINT: http://minio:9000
+
     restart: unless-stopped
 
 volumes:
   pgdata:
+  minio-data:
