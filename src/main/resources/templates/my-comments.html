@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" >
+
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="#{page.comments.title}">My Comments</title>
+</head>
+<body>
+
+<!-- 多语言切换（保持你的片段引入） -->
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{page.comments.heading}">先生からの指導コメント</h2>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th th:text="#{page.comments.table.th.datetime}">日時</th>
+        <th th:text="#{page.comments.table.th.content}">内容</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    <tr th:each="c : ${comments}">
+        <td th:text="${#temporals.format(c.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+        <td th:text="${c.content}"></td>
+    </tr>
+
+    <tr th:if="${#lists.isEmpty(comments)}">
+        <td colspan="2" th:text="#{page.comments.empty}">コメントはありません</td>
+    </tr>
+    </tbody>
+</table>
+
+<a th:href="@{/jobs}" th:text="#{link.backJobs}">返回职位列表</a>
+</body>
+</html>

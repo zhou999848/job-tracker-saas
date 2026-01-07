@@ -6,6 +6,16 @@
     <title th:text="#{page.jobs.title}">职位列表</title>
 </head>
 <body>
+<style>
+    .table-like { border-collapse: collapse; width: 100%; font-size: 14px; color: #333; }
+    .table-like th, .table-like td { border: 1px solid #888; padding: 6px 8px; text-align: center; }
+    .table-like th { font-weight: bold; background: #f9f9f9; }
+    .action-link { color: #0066cc; text-decoration: none; cursor: pointer; }
+    .action-link:hover { text-decoration: underline; }
+    .btn-delete-member { border: none; background: none; color: #0066cc; cursor: pointer; padding: 0; font-size: 14px; }
+    .btn-delete-member:hover { text-decoration: underline; }
+</style>
+
 <!-- 多语言切换片段 -->
 <div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
 
@@ -35,6 +45,8 @@
 
 <a class="nav-link" th:href="@{/system/tenants}"  th:text="#{nav.systemTenants}" sec:authorize="hasRole('SYSTEM_ADMIN')">系统租户管理</a>
 
+<a class="nav-link" th:href="@{/my/comments}" th:text="#{nav.myComments}" sec:authorize="hasRole('USER')" >先生からの指導コメント</a>
+
 <h2>
     <span th:text="#{page.jobs.heading}" >求职记录列表 </span>
     <span style="color:#666; font-size:14px;" th:text="#{jobs.count(${totalJobs})}">
@@ -56,7 +68,9 @@
 <!-- 新增职位 -->
 <a th:href="@{/jobs/add}" th:text="#{jobs.addNew}">添加新的职位</a>
 
-<table border="1">
+<!--<table border="1">-->
+ <table class="table-like">
+
     <thead>
     <tr>
         <th th:text="#{table.seq}">序号</th>

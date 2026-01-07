@@ -1,0 +1,55 @@
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" >
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="#{page.teacherComments.title}">Teacher Comments</title>
+</head>
+<body>
+<div th:replace="~{fragments/lang-switch :: langSwitch}"></div>
+
+<h2 th:text="#{page.teacherComments.heading}">指導コメント（教員）</h2>
+
+<form th:action="@{/students/{studentId}/comments(studentId=${studentId})}"
+      method="post" th:object="${form}">
+
+    <textarea th:field="*{content}"
+              rows="4" cols="70"
+              th:placeholder="#{page.teacherComments.form.placeholder}">
+    </textarea>
+    <br/>
+
+    <button type="submit" th:text="#{button.submit}">送信</button>
+</form>
+
+<hr/>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th th:text="#{page.teacherComments.table.th.datetime}">日時</th>
+        <th th:text="#{page.teacherComments.table.th.content}">内容</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    <tr th:each="c : ${comments}">
+        <td th:text="${#temporals.format(c.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+        <td th:text="${c.content}"></td>
+    </tr>
+
+    <tr th:if="${#lists.isEmpty(comments)}">
+        <td colspan="2" th:text="#{page.teacherComments.empty}">
+            まだコメントがありません
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<a th:href="@{|/tenants/${tenantId}/members|}"
+   th:text="#{link.backToMembers}">
+    返回成员列表
+</a>
+
+</body>
+</html>

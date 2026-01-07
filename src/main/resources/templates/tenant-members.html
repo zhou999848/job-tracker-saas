@@ -52,12 +52,15 @@
 <a th:href="@{/register}" th:text="#{tenant.members.registerNew}">注册新成员</a><br>
 
 <table class="table-like">
+
     <thead>
     <tr>
         <th th:text="#{table.index}">序号</th>
         <th th:text="#{table.username}">Username</th>
         <th th:text="#{table.role}">Role</th>
         <th th:text="#{table.actions}">操作</th>
+
+
     </tr>
     </thead>
     <tbody>
@@ -72,6 +75,12 @@
                th:text="#{tenant.members.viewJobs}">
                 求職記録
             </a>
+            |
+            <a th:href="@{/students/{studentId}/comments(studentId=${m.userId})}"
+               th:text="#{link.comments}">
+                コメント
+            </a>
+
             |
             <a class="action-link"
                th:href="@{|/tenants/${tenantId}/members/${m.userId}/role|}"
