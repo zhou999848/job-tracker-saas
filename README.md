@@ -51,18 +51,6 @@
 
 ## ローカル実行（Local Run）
 
-前提：Docker がインストール済みであること（ポート 8080 が空いていること）
-
-起動： docker compose up --build
-
-アクセス：http://localhost:8080
-
-停止：Ctrl + C（または docker compose down）
-
----
-
-## ローカル実行（Local Run）
-
 前提：
 - Docker がインストール済みであること
 - PostgreSQL / MinIO を Docker で起動する
@@ -78,6 +66,8 @@ http://localhost:8080
 
 停止：
 docker compose down
+
+---
 
 ## デモ用アカウント
 
