@@ -61,6 +61,24 @@
 
 ---
 
+## ローカル実行（Local Run）
+
+前提：
+- Docker がインストール済みであること
+- PostgreSQL / MinIO を Docker で起動する
+
+依存サービス起動：
+docker compose up -d db minio
+
+アプリ起動：
+- IntelliJ IDEA から Spring Boot アプリを起動（dev プロファイル）
+
+アクセス：
+http://localhost:8080
+
+停止：
+docker compose down
+
 ## デモ用アカウント
 
 - TENANT_ADMIN：学校A / 教員A / 11111Aaa
