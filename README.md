@@ -62,7 +62,7 @@ docker compose up -d db minio
 - IntelliJ IDEA から Spring Boot アプリを起動（dev プロファイル）
 
 アクセス：
-http://localhost:8080
+http://localhost:8080/login
 
 停止：
 docker compose down
